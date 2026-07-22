@@ -300,15 +300,28 @@ def _atomic_write_parquet(df: pd.DataFrame, path: Path) -> None:
     os.replace(tmp, path)
 
 
+def merge_lineage(slug: str, lin: LineageLog) -> None:
+    """Merge new lineage records into a city's lineage.json (dedup by source)."""
+    path = get_settings().feature_store_dir / slug / "lineage.json"
+    merged = {r.source: r for r in LineageLog.read(path)}
+    for r in lin.records:
+        merged[r.source] = r
+    path.write_text(
+        json.dumps([r.model_dump() for r in merged.values()], indent=2), encoding="utf-8"
+    )
+
+
 def enrich_satellite(slug: str) -> Path:
     """Merge cached GEE satellite into an existing parquet in place (no full rebuild)."""
     cfg = load_city(slug)
     path = get_settings().feature_store_dir / slug / "hourly.parquet"
     df = pd.read_parquet(path)
-    df = add_satellite(df, cfg, LineageLog())
+    lin = LineageLog()
+    df = add_satellite(df, cfg, lin)
     df = finalize(df)
     validate(df)
     _atomic_write_parquet(df, path)
+    merge_lineage(slug, lin)
     n = int(df["s5p_no2"].notna().sum())
     log.info("features.enrich_satellite", city=slug, rows=len(df), s5p_no2_nonnull=n)
     return path
@@ -319,10 +332,12 @@ def enrich_landuse(slug: str) -> Path:
     cfg = load_city(slug)
     path = get_settings().feature_store_dir / slug / "hourly.parquet"
     df = pd.read_parquet(path)
-    df = add_landuse(df, cfg, LineageLog())
+    lin = LineageLog()
+    df = add_landuse(df, cfg, lin)
     df = finalize(df)
     validate(df)
     _atomic_write_parquet(df, path)
+    merge_lineage(slug, lin)
     n = int(df["road_density"].notna().sum())
     log.info("features.enrich_landuse", city=slug, rows=len(df), road_density_nonnull=n)
     return path
