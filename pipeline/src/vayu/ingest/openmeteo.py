@@ -77,7 +77,15 @@ def fetch_forecast(
         "forecast_days": forecast_days,
         "past_days": past_days,
     }
-    resp = requests.get(FORECAST_URL, params=params, timeout=60, headers={"User-Agent": "vayu"})
+    delay = 8.0
+    for _ in range(4):
+        resp = requests.get(FORECAST_URL, params=params, timeout=60, headers={"User-Agent": "vayu"})
+        if resp.status_code == 429:
+            time.sleep(delay)
+            delay *= 1.7
+            continue
+        resp.raise_for_status()
+        return _parse_hourly(resp.json())
     resp.raise_for_status()
     return _parse_hourly(resp.json())
 
