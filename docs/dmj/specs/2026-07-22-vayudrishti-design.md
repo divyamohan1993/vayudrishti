@@ -154,6 +154,7 @@ flowchart LR
 | A10 | Ward vintage best-available, noted on /about-data; BMC 24 vs BBMP 198 granularity noted | proceed |
 | A11 | Basemap = self-hosted PMTiles (OSM tile policy) | new |
 | A12 | Single-winter training window; claims scoped, stated on /receipts | new |
+| A14 | Next pinned to 15 (not 16): ecosystem-proven with deck.gl+MapLibre+static export; Turbopack map-stack risk not worth it time-boxed; reversible one-liner | ratified 2026-07-22 |
 
 ## 11. Team plan (4 Opus teammates, parallel; SendMessage coordination; schema freeze end of Day 2)
 
