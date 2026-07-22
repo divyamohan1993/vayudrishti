@@ -24,6 +24,12 @@ firms_country: IND
 station_match: {}
 openaq_location_ids: []
 
+# Independent holdout (spec 15.3): US Diplomatic Post New Delhi. Models must never
+# train on these. NOTE: OpenAQ location 2597 is defunct (last report 2016-11), so it
+# carries no data in the Feb-2025 window; the blind holdout is therefore the LOSO
+# spatial holdout until an active independent monitor is available.
+independent_holdout: [2597]
+
 languages:
   primary: [en, hi]
   regional: null            # Delhi advisories in hi/en

@@ -1,0 +1,85 @@
+# Delhi GRAP intervention calendar, winter 2025-26 (spec 13, Intervention Ledger).
+#
+# REAL CAQM orders only. Every date is corroborated from a CAQM order PDF and/or an
+# official government source; zero invented dates. Query strings are absent from
+# these source URLs (static PDFs), so they are stored whole.
+#
+# GRAP stages are cumulative: invoking Stage-IV keeps Stages I-III in force. Each
+# entry below is one ACTIVE PERIOD of a stage, with the invocation order that began
+# it and the revocation that ended it. Times are day-granularity ("YYYY-MM-DD 00:00"
+# IST = the order's effective day); the event-study runs on the daily weather-
+# normalized series, so sub-day enforcement times are deliberately not invented.
+#
+# Consumer: vayu-models (deweathering event-study + placebo + GEMM health ledger).
+# Schema shape agreed with models: {stage, start_ist, end_ist|null, source_url};
+# revoked_url and confidence are additive.
+
+city: delhi
+season: "2025-26"
+tz: Asia/Kolkata
+grap_orders_index: https://caqm.nic.in/index1.aspx?lsid=4168&lev=2&lid=4171&langid=1
+methodology_note: >-
+  Stages nest (IV implies I-III). Sharp interventions for the event-study are the
+  Stage-III (2025-11-11) and Stage-IV (2025-12-13, 2026-01-17) invocations. Later
+  revocations without a located order PDF cite the CAQM orders index plus an
+  official broadcaster and are tagged confidence: medium.
+
+stages:
+  - stage: GRAP-I
+    start_ist: "2025-10-14 00:00"
+    end_ist: "2026-03-16 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/GRAP%20Order%20dt%20141020254f778085-75c5-4ab2-aa63-6f843496c311.pdf
+    revoked_url: https://caqm.nic.in/index1.aspx?lsid=4168&lev=2&lid=4171&langid=1
+    confidence: high
+    note: Stage-I (Poor, AQI 201-300) in force across the winter; higher stages nest within.
+
+  - stage: GRAP-II
+    start_ist: "2025-10-19 00:00"
+    end_ist: "2026-02-18 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/Invocation%20of%20GRAP%20order-%20Stage-%20II%20191020257fe54de8-42f2-456b-b1b7-75ec39e2bb14.pdf
+    revoked_url: https://caqm.nic.in/index1.aspx?lsid=4168&lev=2&lid=4171&langid=1
+    confidence: medium
+    note: Stage-II (Very Poor, AQI 301-400). Revocation date from official sources; order PDF via index.
+
+  - stage: GRAP-III
+    start_ist: "2025-11-11 00:00"
+    end_ist: "2025-11-26 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/1445%20DT%20Clarification%20to%20GRAP%20Order%20111120258942b9cc-236b-4d65-a83d-7a4ce4c4bceb.pdf
+    revoked_url: https://newsonair.gov.in/caqm-revokes-stage-iii-of-grap-in-delhi-ncr-as-air-quality-improves
+    confidence: high
+    note: >-
+      Stage-III (Severe, AQI 401-450) invoked 11.11.2025 (also PIB PRID 2203566),
+      revoked 26.11.2025 as AQI eased to 327; Stages I-II continued.
+
+  - stage: GRAP-IV
+    start_ist: "2025-12-13 00:00"
+    end_ist: "2025-12-24 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/GRAP%20Stage-IV%20invocation%20order%2013122025ed5d1f9d-5ea1-4238-896c-17979da39e91.pdf
+    revoked_url: https://caqm.nic.in/WriteReadData/LINKS/GRAP%20Order%20dt%2024122025e7f369d7-b976-4518-b94e-0eab058730f0.pdf
+    confidence: high
+    note: Stage-IV (Severe+, AQI >450) invoked 13.12.2025, all Stage-IV actions revoked 24.12.2025.
+
+  - stage: GRAP-III
+    start_ist: "2025-12-13 00:00"
+    end_ist: "2026-01-22 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/GRAP%20Stage-IV%20invocation%20order%2013122025ed5d1f9d-5ea1-4238-896c-17979da39e91.pdf
+    revoked_url: https://caqm.nic.in/index1.aspx?lsid=4168&lev=2&lid=4171&langid=1
+    confidence: medium
+    note: >-
+      Stage-III back in force through the Dec-Jan severe spell (nested under the
+      13.12 Stage-IV escalation), revoked 22.01.2026. Second period; boundary
+      inferred from the Stage-IV order and the 22.01 revocation.
+
+  - stage: GRAP-IV
+    start_ist: "2026-01-17 00:00"
+    end_ist: "2026-01-20 00:00"
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/Invocation%20of%20GRAP%20order-%20Stage-%20IV%2017012026eb1a5169-52ec-4ebb-8381-3ee680d6f70f.pdf
+    revoked_url: https://caqm.nic.in/index1.aspx?lsid=4168&lev=2&lid=4171&langid=1
+    confidence: high
+    note: Second Stage-IV invocation 17.01.2026 (CAQM order), revoked 20.01.2026.
+
+context_orders:
+  - date_ist: "2025-11-21"
+    kind: schedule_revision
+    source_url: https://caqm.nic.in/WriteReadData/LINKS/GRAP%20Order47928aa8-d026-4478-9407-2eba0a328a2d.pdf
+    note: CAQM revised the GRAP schedule (modified framework) on 21.11.2025; not a stage transition.

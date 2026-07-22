@@ -7,8 +7,6 @@ seed, languages, and inventory references. This module is the single typed reade
 
 from __future__ import annotations
 
-from pathlib import Path
-
 import yaml
 from pydantic import BaseModel, Field
 
@@ -53,6 +51,9 @@ class CityConfig(BaseModel):
     firms_country: str = "IND"
     station_match: dict[str, int] = Field(default_factory=dict)
     openaq_location_ids: list[int] = Field(default_factory=list)
+    # US Diplomatic Post / other independent reference stations. Models must NEVER
+    # train on these; they are a blind validation set (spec 15.3).
+    independent_holdout: list[int] = Field(default_factory=list)
     languages: LanguagesCfg = Field(default_factory=LanguagesCfg)
     inventory_refs: list[InventoryRef] = Field(default_factory=list)
 
