@@ -11,11 +11,10 @@ India observes no DST, so the IST offset is a constant +05:30.
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
 
 IST = ZoneInfo("Asia/Kolkata")
-UTC = timezone.utc
 
 
 def ist_naive_to_utc(dt: datetime) -> datetime:
