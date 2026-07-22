@@ -34,7 +34,7 @@ OVERPASS_ENDPOINTS = [
 ROAD_CLASSES = "motorway|trunk|primary|secondary|tertiary|residential|unclassified|living_street"
 BUFFER_M = 500.0
 BUFFER_AREA_KM2 = 3.141592653589793 * (BUFFER_M / 1000.0) ** 2
-CHUNK_SIZE = 12
+CHUNK_SIZE = 4  # small union queries keep Overpass under its 504 threshold
 
 
 def overpass_query(query: str, *, retries: int = 5, timeout: int = 180) -> dict | None:
@@ -104,6 +104,71 @@ def fetch_industrial(bbox: tuple[float, float, float, float], utm_epsg: int) -> 
     if not polys:
         return gpd.GeoSeries([], crs=utm_epsg)
     return gpd.GeoSeries(polys, crs="EPSG:4326").to_crs(utm_epsg)
+
+
+MAJOR_ROAD_CLASSES = "motorway|trunk|primary|secondary"
+ROAD_SIMPLIFY_DEG = 0.0002  # ~22 m; thin orientation lines only
+ROAD_COORD_DECIMALS = 5
+
+
+def emit_roads_geojson(
+    bbox: tuple[float, float, float, float], out_path: Path
+) -> int:
+    """Publish a thin major-road roads.geojson for map orientation (spec vayu-web).
+
+    Motorway/trunk/primary/secondary only, city bbox, simplified + 5dp rounded.
+    Returns the number of road features written (0 if Overpass fails; file untouched).
+    """
+    import json
+
+    from shapely.geometry import mapping
+
+    min_lon, min_lat, max_lon, max_lat = bbox
+    query = (
+        f"[out:json][timeout:180];"
+        f'way[highway~"^({MAJOR_ROAD_CLASSES})$"]({min_lat},{min_lon},{max_lat},{max_lon});'
+        f"out geom;"
+    )
+    data = overpass_query(query, timeout=180)
+    if data is None:
+        log.warning("osm.roads_fetch_failed", bbox=bbox)
+        return 0
+
+    def _round(obj):
+        if isinstance(obj, float):
+            return round(obj, ROAD_COORD_DECIMALS)
+        if isinstance(obj, (list, tuple)):
+            return [_round(x) for x in obj]
+        return obj
+
+    features = []
+    for el in data.get("elements", []):
+        tags = el.get("tags", {})
+        coords = [(p["lon"], p["lat"]) for p in el.get("geometry", [])]
+        if len(coords) < 2:
+            continue
+        geom = LineString(coords).simplify(ROAD_SIMPLIFY_DEG, preserve_topology=False)
+        if geom.is_empty:
+            continue
+        props = {"class": tags.get("highway")}
+        if tags.get("name"):
+            props["name"] = tags["name"]
+        gj = mapping(geom)
+        gj["coordinates"] = _round(gj["coordinates"])
+        features.append({"type": "Feature", "properties": props, "geometry": gj})
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(
+        json.dumps({"type": "FeatureCollection", "features": features}, separators=(",", ":")),
+        encoding="utf-8",
+    )
+    log.info(
+        "osm.roads_emit",
+        features=len(features),
+        size_kb=round(out_path.stat().st_size / 1024, 1),
+        out=str(out_path.name),
+    )
+    return len(features)
 
 
 def _chunks(df: pd.DataFrame, size: int):

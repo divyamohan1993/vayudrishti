@@ -23,7 +23,6 @@ from vayu.geo import assign_points_to_wards, read_geojson
 from vayu.ingest import firms, openmeteo
 from vayu.ingest import openaq_archive as oaq
 from vayu.ingest.openaq_discover import discover_locations, load_seed
-from vayu.ingest.osm_static import build_station_landuse
 from vayu.lineage import LineageLog
 from vayu.logging_setup import get_logger
 from vayu.settings import get_settings, repo_root
@@ -94,21 +93,25 @@ def add_upwind(df: pd.DataFrame, fires: pd.DataFrame | None) -> pd.DataFrame:
             near = dist <= upwind.DEFAULT_MAX_KM
             if not near.any():
                 continue
-            nbear = upwind.bearing_deg_np(slat, slon, flat[near], flon[near])
-            nfrp = ffrp[near]
-            nt = ft[near]
+            # Sort near-fires by time so each hour's trailing-24h window is a slice
+            # (searchsorted), instead of masking all near-fires every hour.
+            order = np.argsort(ft[near])
+            nbear = upwind.bearing_deg_np(slat, slon, flat[near], flon[near])[order]
+            nfrp = ffrp[near][order]
+            nt = ft[near][order]
             positions = pos[df.index.get_indexer(idx)]
             ts = sub["ts_utc"].to_numpy()
             wdir = sub["wind_dir_10m"].to_numpy(dtype=float)
             for j, (t, wd) in enumerate(zip(ts, wdir, strict=False)):
                 if np.isnan(wd):
                     continue
-                inwin = (nt > t - window) & (nt <= t)
-                if not inwin.any():
+                lo = np.searchsorted(nt, t - window, side="right")
+                hi = np.searchsorted(nt, t, side="right")
+                if hi <= lo:
                     continue
-                sel = upwind.angular_diff_np(nbear[inwin], wd) <= upwind.DEFAULT_HALF_ANGLE_DEG
+                sel = upwind.angular_diff_np(nbear[lo:hi], wd) <= upwind.DEFAULT_HALF_ANGLE_DEG
                 if sel.any():
-                    frp[positions[j]] = round(float(nfrp[inwin][sel].sum()), 4)
+                    frp[positions[j]] = round(float(nfrp[lo:hi][sel].sum()), 4)
                     cnt[positions[j]] = int(sel.sum())
     out = df.copy()
     out["frp_upwind"] = frp
@@ -116,17 +119,28 @@ def add_upwind(df: pd.DataFrame, fires: pd.DataFrame | None) -> pd.DataFrame:
     return out
 
 
+LANDUSE_COLS = ["road_density", "builtup_frac", "industrial_dist_km"]
+
+
 def add_landuse(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFrame:
+    """Merge cached OSM land-use. Never fetches here: Overpass is warmed by
+    `vayu ingest --sources osm`, so `features` stays fast. Uncached stations get NaN.
+    """
     cache = get_settings().raw_dir / cfg.slug / "osm_landuse.parquet"
-    stations = df.groupby("station_id")[["lat", "lon"]].first().reset_index()
-    lu = build_station_landuse(stations, cfg.bbox_tuple, cfg.utm_epsg, cache)
-    lin.add(
-        source="osm-overpass",
-        url="https://overpass-api.de/api/interpreter",
-        resource_id="highway+building+landuse=industrial",
-        rows=len(lu),
-    )
-    return df.merge(lu, on="station_id", how="left")
+    if cache.exists():
+        lu = pd.read_parquet(cache)
+        lu["station_id"] = lu["station_id"].astype(str)
+        lin.add(
+            source="osm-overpass",
+            url="https://overpass-api.de/api/interpreter",
+            resource_id="highway+building+landuse=industrial",
+            rows=len(lu),
+        )
+        df = df.merge(lu, on="station_id", how="left")
+    for c in LANDUSE_COLS:
+        if c not in df.columns:
+            df[c] = np.nan
+    return df
 
 
 def add_satellite(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFrame:
