@@ -20,7 +20,7 @@ paths = [
   '''(^|/)out/''',
   '''(^|/)dist/''',
   '''(^|/)__pycache__/''',
-  '''(^|/)tests/fixtures/''',
+  '''(^|/)tests?/''',
   '''(^|/)pnpm-lock\.yaml$''',
   '''(^|/)package-lock\.json$''',
   '''(^|/)uv\.lock$''',

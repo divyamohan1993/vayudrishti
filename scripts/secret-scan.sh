@@ -87,12 +87,16 @@ scan_bundle() {
 scan_tree() {
   CRED="$CRED_FMT"
   # -e guards against the pattern's leading '-----' being parsed as grep options.
+  # tests/ dirs are excluded: security unit tests legitimately embed FAKE token
+  # shapes (nvapi-, ghp_, sk-) to prove the gate rejects them. Real secrets never
+  # ship from tests. Published data + bundle scans (not excluded) are the real net.
   if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     hits=$(git grep -InE -e "$CRED" -- . \
       ':(exclude).env.example' ':(exclude)scripts/secret-scan.sh' \
+      ':(exclude)*/tests/*' ':(exclude)tests/*' \
       ':(exclude)*.lock' ':(exclude)pnpm-lock.yaml' ':(exclude)uv.lock' 2>/dev/null)
   else
-    EXC_DIR='--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=out --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.vercel'
+    EXC_DIR='--exclude-dir=.git --exclude-dir=node_modules --exclude-dir=.next --exclude-dir=out --exclude-dir=.venv --exclude-dir=__pycache__ --exclude-dir=.vercel --exclude-dir=tests'
     EXC_FILE='--exclude=.env --exclude=.env.* --exclude=secret-scan.sh --exclude=*.lock --exclude=pnpm-lock.yaml --exclude=uv.lock'
     # shellcheck disable=SC2086
     hits=$(grep -rInE $EXC_DIR $EXC_FILE -e "$CRED" . 2>/dev/null)
