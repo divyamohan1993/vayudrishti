@@ -45,6 +45,18 @@
         "calls": { "type": "integer", "minimum": 0, "description": "Total NIM chat calls this run (bounded per publish, spec 14)." }
       },
       "description": "Roll-up across all runs for the single-line transparency display."
+    },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "briefs_audited", "refs_checked", "audited_at"],
+      "properties": {
+        "passed": { "type": "boolean", "description": "True when every ref in the published briefs re-resolved (acceptance 18)." },
+        "briefs_audited": { "type": "integer", "minimum": 0 },
+        "refs_checked": { "type": "integer", "minimum": 0, "description": "Total evidence_refs + basis_refs independently re-resolved against the published artifacts." },
+        "audited_at": { "type": "string", "format": "date-time" }
+      },
+      "description": "Resolver-receipts result as published DATA (the self-audit run at generation), so a consumer can render an 'independently audited' stamp instead of computing it client-side."
     }
   }
 }

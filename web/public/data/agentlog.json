@@ -69,5 +69,11 @@
     "total": 45790,
     "calls": 6
   },
-  "fixture": true
+  "fixture": true,
+  "audit": {
+    "passed": true,
+    "briefs_audited": 3,
+    "refs_checked": 30,
+    "audited_at": "2026-07-22T21:07:03Z"
+  }
 }

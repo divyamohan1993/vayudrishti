@@ -185,8 +185,9 @@ def run(args: argparse.Namespace) -> int:
     all_runs: list[dict[str, Any]] = []
     any_fixture = False
     client = None
+    cities = _resolve_cities(args.city)
 
-    for city in _resolve_cities(args.city):
+    for city in cities:
         try:
             if not key:
                 raise NimError("NVIDIA_API_KEY absent; agentic layer disabled")
@@ -231,6 +232,19 @@ def run(args: argparse.Namespace) -> int:
         agentlog["fixture"] = True
     if not all_runs:
         agentlog["stale"] = True
+
+    # Self-audit: re-resolve every ref in the just-written briefs and publish the result as
+    # DATA (acceptance 18 as a stamp, not a client-side claim).
+    from vayu.agents.audit import audit_city
+
+    audits = [audit_city(data_root, c) for c in cities]
+    if any(a.briefs_audited for a in audits) or all_runs:
+        agentlog["audit"] = {
+            "passed": all(a.ok for a in audits),
+            "briefs_audited": sum(a.briefs_audited for a in audits),
+            "refs_checked": sum(a.refs_checked for a in audits),
+            "audited_at": utc_iso_z(now_utc()),
+        }
     try:
         _write_json(_agentlog_path(data_root), agentlog)
     except NimError as exc:

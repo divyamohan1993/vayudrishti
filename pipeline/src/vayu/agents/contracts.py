@@ -200,6 +200,16 @@ class AgentTotals(_Strict):
     calls: int = Field(ge=0)
 
 
+class AuditStamp(_Strict):
+    """Published resolver-receipts result (acceptance 18 as DATA, not a client-side claim).
+    Set by the generation self-audit right after briefs are written."""
+
+    passed: bool
+    briefs_audited: int = Field(ge=0)
+    refs_checked: int = Field(ge=0)
+    audited_at: IsoDateTime
+
+
 class AgentLogDoc(_Strict):
     generated_at: IsoDateTime
     fixture: bool | None = None
@@ -207,6 +217,7 @@ class AgentLogDoc(_Strict):
     model: CleanStr = Field(min_length=1, max_length=120)
     runs: list[AgentRun]
     totals: AgentTotals | None = None
+    audit: AuditStamp | None = None
 
 
 __all__ = [

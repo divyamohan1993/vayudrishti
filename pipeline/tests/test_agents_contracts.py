@@ -140,3 +140,31 @@ def test_agentlog_rejects_bad_role():
                 ],
             }
         )
+
+
+def test_agentlog_with_audit_block():
+    AgentLogDoc.model_validate(
+        {
+            "generated_at": "2025-11-08T06:00:00Z",
+            "model": "m",
+            "runs": [],
+            "audit": {
+                "passed": True,
+                "briefs_audited": 3,
+                "refs_checked": 30,
+                "audited_at": "2025-11-08T06:00:00Z",
+            },
+        }
+    )
+
+
+def test_agentlog_rejects_incomplete_audit_block():
+    with pytest.raises(ValidationError):
+        AgentLogDoc.model_validate(
+            {
+                "generated_at": "2025-11-08T06:00:00Z",
+                "model": "m",
+                "runs": [],
+                "audit": {"passed": True},  # missing briefs_audited / refs_checked / audited_at
+            }
+        )

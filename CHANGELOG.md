@@ -22,7 +22,9 @@ All notable changes to VayuDrishti are recorded here. Format follows
     and NVIDIA key material.
   - `vayu briefs --audit --city X`: independently re-resolves every ref in the
     PUBLISHED briefs.json against the published artifacts (acceptance 18, tightest
-    form); exit 1 on any failure, for the CI publish gate.
+    form); exit 1 on any failure, for the CI publish gate. The generation step also
+    self-audits and publishes the result as an `audit` block in agentlog.json, so
+    the transparency panel renders an "independently audited" stamp from data.
   - Sample `briefs.json` + `agentlog.json` published as fixtures for the web panel.
   - Every number in a brief resolves against a published artifact or its ref is
     pruned; the point effect and its confidence interval are grounded from the
