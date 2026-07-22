@@ -59,13 +59,18 @@
               "wards": { "type": "string" },
               "replay_index": { "type": "string" },
               "interventions": { "type": "string" },
-              "ledger": { "type": "string" }
+              "ledger": { "type": "string" },
+              "briefs": { "type": "string" }
             }
           },
           "fixture": { "type": "boolean" },
           "generated_at": { "type": "string", "format": "date-time" }
         }
       }
+    },
+    "agentlog": {
+      "type": "string",
+      "description": "Relative path to the global agentic run log (vayu-agents). Not per-city."
     }
   }
 }

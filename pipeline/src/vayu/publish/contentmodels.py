@@ -281,6 +281,7 @@ class ManifestFiles(_Strict):
     replay_index: CleanStr | None = None
     interventions: CleanStr | None = None
     ledger: CleanStr | None = None
+    briefs: CleanStr | None = None  # per-city agentic briefs (vayu-agents)
 
 
 class CityManifest(_Strict):
@@ -300,6 +301,7 @@ class ManifestDoc(_Strict):
     fixture: bool | None = None
     sat_numeric: bool
     cities: list[CityManifest] = Field(min_length=1)
+    agentlog: CleanStr | None = None  # global agentic run log (vayu-agents); not per-city
 
 
 # ---------------------------------------------------------------- replay index

@@ -15,10 +15,26 @@ from pathlib import Path
 from pydantic import ValidationError
 
 from vayu.logging_setup import get_logger
-from vayu.publish.contentmodels import ManifestDoc, model_for_path
+from vayu.publish.contentmodels import MODEL_BY_FILENAME, ManifestDoc, model_for_path
 from vayu.publish.emit import web_data_dir
 
 log = get_logger("gate")
+
+
+def _register_external_models() -> None:
+    """Best-effort registration of teammate-owned content models (the agentic layer).
+
+    Non-fatal by design: an absent or broken external contract leaves those files
+    unvalidated (the owner self-verifies before emit) but never crashes the gate. Keeps
+    the gate pure-local -- vayu.agents.contracts imports only pydantic + our own modules.
+    """
+    try:
+        from vayu.agents.contracts import AgentLogDoc, BriefsDoc
+
+        MODEL_BY_FILENAME.setdefault("briefs.json", BriefsDoc)  # per-city
+        MODEL_BY_FILENAME.setdefault("agentlog.json", AgentLogDoc)  # global
+    except Exception as exc:  # pragma: no cover - defensive
+        log.debug("gate.external_models_unavailable", detail=str(exc))
 
 
 @dataclass
@@ -104,6 +120,7 @@ def run_gate(*, city: str, data_root: str | None) -> int:
     if not root.exists():
         log.error("gate.data_root_missing", data_root=str(root))
         return 1
+    _register_external_models()
     report = GateReport()
     if city == "all":
         gate_all(root, report)
