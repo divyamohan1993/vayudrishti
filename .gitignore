@@ -10,3 +10,16 @@ data/raw/
 .next/
 .vercel/
 models/artifacts/
+pipeline/**/artifacts/
+
+# web static export build output (never committed; Vercel builds it)
+out/
+web/out/
+
+# local secrets (GEE service-account key path in .env.example points here)
+secrets/
+
+# humanizer temp artifacts and OS cruft
+*.humanized
+.DS_Store
+Thumbs.db

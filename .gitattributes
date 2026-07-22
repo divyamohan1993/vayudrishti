@@ -1,0 +1,30 @@
+# Normalize line endings across platforms. The repo deploys to Linux (GitHub
+# Actions, Vercel, Cloud Run), so anything a shell or CI executes MUST be LF.
+# Windows checkouts otherwise produce CRLF, which breaks shell scripts on ubuntu
+# ("$'\r': command not found").
+
+* text=auto
+
+# Executed on Linux or by git-bash: force LF regardless of platform.
+*.sh        text eol=lf
+*.bash      text eol=lf
+*.mjs       text eol=lf
+*.yml       text eol=lf
+*.yaml      text eol=lf
+.githooks/* text eol=lf
+scripts/*   text eol=lf
+
+# Config the toolchain parses: keep LF for consistency.
+*.json      text eol=lf
+.env.example text eol=lf
+.gitignore  text eol=lf
+.gitattributes text eol=lf
+
+# Binary assets: never touch.
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.webp    binary
+*.woff2   binary
+*.pmtiles binary
+*.parquet binary
