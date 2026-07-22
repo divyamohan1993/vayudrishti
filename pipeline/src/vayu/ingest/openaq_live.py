@@ -10,6 +10,8 @@ committed discovery seed.
 
 from __future__ import annotations
 
+import time
+
 import pandas as pd
 import requests
 
@@ -39,13 +41,22 @@ def fetch_live(city_slug: str, location_ids: list[int]) -> pd.DataFrame:
         if not info or not info.get("sensors"):
             continue
         smap = info["sensors"]
-        try:
-            resp = requests.get(
-                V3_LATEST.format(loc=loc), headers={"X-API-Key": key}, timeout=30
-            )
-            resp.raise_for_status()
-        except requests.RequestException as exc:
-            log.warning("openaq_live.error", loc=loc, error=type(exc).__name__)
+        resp = None
+        delay = 5.0
+        for _ in range(4):  # OpenAQ rate-limits under batch load; back off on 429
+            try:
+                r = requests.get(V3_LATEST.format(loc=loc), headers={"X-API-Key": key}, timeout=30)
+            except requests.RequestException as exc:
+                log.warning("openaq_live.error", loc=loc, error=type(exc).__name__)
+                break
+            if r.status_code == 429:
+                time.sleep(delay)
+                delay *= 1.7
+                continue
+            if r.status_code == 200:
+                resp = r
+            break
+        if resp is None:
             continue
         for item in resp.json().get("results", []):
             param = smap.get(str(item.get("sensorsId")))
