@@ -279,6 +279,7 @@ class ManifestFiles(_Strict):
     advisories: CleanStr | None = None
     wards: CleanStr | None = None
     roads: CleanStr | None = None  # per-city road network geojson (vayu-data)
+    fires: CleanStr | None = None  # per-city observed fire-cluster layer (vayu-data)
     replay_index: CleanStr | None = None
     interventions: CleanStr | None = None
     ledger: CleanStr | None = None

@@ -58,6 +58,7 @@
               "advisories": { "type": "string" },
               "wards": { "type": "string" },
               "roads": { "type": "string" },
+              "fires": { "type": "string" },
               "replay_index": { "type": "string" },
               "interventions": { "type": "string" },
               "ledger": { "type": "string" },

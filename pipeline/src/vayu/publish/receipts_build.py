@@ -45,8 +45,11 @@ METHOD_CITATIONS = [
     {"label": "CPCB National AQI methodology", "url": "https://cpcb.nic.in/national-air-quality-index/", "used_for": "AQI sub-index"},
 ]
 HONESTY = [
+    "Acceptance criterion 3 (preregistered, kept on record as written): 'Delhi nowcast stratified LOSO curve beats IDW at every distance bucket <=5km.' OUTCOME: NOT MET.",
+    "Full distance-stratified LOSO curve is published in nowcast_cv: the fusion model's RMSE exceeds the IDW baseline at every <=5km bucket, and is lower than IDW only at the farthest (>=8km) bucket.",
+    "Post-hoc diagnosis (NOT preregistered): at station-dense holdout locations IDW is a strong baseline, and the fusion model's dominant feature is the IDW-of-neighbours term, so it cannot systematically beat IDW where neighbours are close. Land-use (100%) and satellite (71%) together reduce error only 0.3% (see ablation), so the shortfall is structural, not a missing-feature gap.",
+    "Product-relevant metric going forward: fusion's value is interior gap-fill far from monitors (the >=8km bucket, where the model beats IDW) -- the operational use case for grid cells with no nearby station.",
     "Single-winter training window (Feb-2025 onward); no multi-season generalization claims.",
-    "Nowcast LOSO and forecast skill computed on real Delhi data; nowcast improves as land-use and satellite features are enriched.",
     "Forecast backtest uses archived actual meteo at the target hour as a proxy for forecast meteo, so live skill will be somewhat lower (weather-forecast error).",
     "Attribution is a labeled estimate (CPF wind-sector + heuristics), never measured emissions.",
     "Intervention effects are a before/after contrast on the deweathered series; the placebo test isolates the policy signal from the seasonal emission trend. A CI spanning 0 or a failed placebo is published as a null accountability finding.",
@@ -73,7 +76,9 @@ def build(city: str = "delhi") -> ReceiptsDoc:
     gen = utc_iso_z(now_utc())
     art = metrics_path(city).parent
 
-    cv = _load_json(art / "nowcast_cv_landuse.json") or _load_json(art / "nowcast_cv.json")
+    cv_sat = _load_json(art / "nowcast_cv_sat.json")
+    cv_landuse = _load_json(art / "nowcast_cv_landuse.json")
+    cv = cv_sat or cv_landuse or _load_json(art / "nowcast_cv.json")
     forecast = _load_json(art / "forecast_backtest.json")
 
     city_receipt: dict = {}
@@ -81,6 +86,18 @@ def build(city: str = "delhi") -> ReceiptsDoc:
         city_receipt["nowcast_cv"] = {"baseline": cv["baseline"], "buckets": cv["buckets"]}
     if forecast:
         city_receipt["forecast"] = forecast
+    if cv_sat and cv_landuse:
+        w = cv_sat["overall"]["model_rmse"]
+        wo = cv_landuse["overall"]["model_rmse"]
+        city_receipt["ablation"] = {
+            "note": sanitize_text(
+                "Nowcast LOSO RMSE with vs without the GEE numeric satellite features "
+                "(Sentinel-5P + MAIAC AOD); identical rows and config, satellite 71% populated "
+                "(real cloud/QA gaps). Positive delta_pct = satellite reduces error."),
+            "metric": "nowcast LOSO RMSE (ug/m3)",
+            "with_sat": round(w, 2), "without_sat": round(wo, 2),
+            "delta_pct": round(100.0 * (wo - w) / wo, 1) if wo else 0.0,
+        }
     try:
         df = load_feature_store(city)
         city_receipt["attribution_directional_checks"] = directional_checks(df, in_stubble_season=True)
