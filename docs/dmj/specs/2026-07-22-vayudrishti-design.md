@@ -217,6 +217,61 @@ Peer protocol: milestone updates to `main`; blockers → SendMessage the owning 
 
 **Team delta**: new teammate `vayu-agents` owns `vayu/agents/*` + briefs/agentlog schemas + smoke-tested NIM integration; vayu-web renders Briefs panel (+ copilot UI if stretch approved); vayu-ops adds NVIDIA_API_KEY to .env.example + Actions secret + masking; vayu-models' publish gate extends to briefs.json.
 
+## 15. Scientific Depth Pack (v5 addendum, 2026-07-23) — gaps in existing AQ systems, closed by design
+
+Existing systems (CPCB dashboards, SAFAR, IITM DSS, commercial apps) share known gaps: single-method estimates with hidden uncertainty, no independent validation, unmonitored data quality, one-satellite-overpass blindness, reactive alerts. Each gap below is closed by a **pair of techniques that cover each other's failure modes**, all from peer-reviewed methods.
+
+### 15.1 Ensemble-of-methods gap filling (the core scientific claim)
+Level-0 independent estimators per grid cell/hour:
+1. **IDW** (baseline), 2. **Ordinary kriging** (pykrige; geostatistical spatial structure + kriging variance), 3. **Satellite-derived PM2.5** (MAIAC AOD × meteorology regression, van Donkelaar-style two-stage), 4. **LightGBM fusion** (current §5.1).
+Level-1: **stacked generalization** (Wolpert) — per-city NNLS/ridge stacker trained ONLY on LOSO folds (no leakage). Published per cell: ensemble value p50/p90, per-method weights, and a **method-disagreement index** (spread across level-0) = honest epistemic uncertainty. Receipts: each method's standalone stratified-LOSO skill vs the ensemble (the "methods fill each other's gaps" table, acceptance 21).
+
+Gap-cover matrix (rendered on `/methods`):
+| Failure mode | Covered by |
+|---|---|
+| Sparse stations | satellite AOD-PM + kriging structure |
+| Satellite cloud gaps (monsoon) | ground kriging + meteo features + compositing (+ GEMS hourly when keyed) |
+| One-overpass-per-day LEO | GEMS geostationary diurnal (keyed) + diurnal ML priors |
+| Model bias drift | independent-network validation (15.3) + calibration (15.4) |
+| Bad station data | trust scores (15.6) down-weight fusion inputs |
+| Point estimates hide risk | quantiles + exceedance probabilities (15.5) |
+
+### 15.2 Trajectory physics for attribution + early warning
+- **Simplified kinematic back-trajectories** (48h, hourly steps, ERA5/Open-Meteo boundary-layer wind blend; assumptions labeled: 2D, BL-averaged) + **CWT (concentration-weighted trajectory, Hsu 2003)** source-region fields per ward → attribution v2: trajectory-weighted upwind source regions with FIRMS + S5P NO2 column overlap. Fills the CPF gap (CPF = direction only; CWT = geography).
+- **Plume early warning**: forward-advect FIRMS fire-cluster centroids with forecast winds → **arrival ETA + affected wards + probability** ("smoke from Punjab cluster arrives ~9h, P=0.7, wards X,Y"). New brief type `plume-alert` (agents layer).
+
+### 15.3 Independent validation network (never trained on)
+US Diplomatic Post PM2.5 stations (Delhi, Mumbai, Kolkata, Chennai, Hyderabad) — available via OpenAQ (already keyed), unbroken 2016→now. HARD RULE: excluded from all training; receipts publish RMSE/bias vs embassy per city ("validated against a network we never trained on", acceptance 22). AirNow API = fallback path if OpenAQ provider filter fails.
+
+### 15.4 Forecast calibration receipts
+PIT/coverage analysis on the rolling backtest: does the p50-p90 band cover its nominal frequency? Reliability diagram + coverage table on `/receipts` (acceptance 23). Miscalibration reported, not hidden; simple isotonic recalibration if badly off (documented).
+
+### 15.5 Probabilistic decision products
+- **Exceedance probabilities**: P(24h-mean PM2.5 > CPCB band edges) per ward per horizon, from quantile forecasts (interpolated CDF).
+- **GRAP trigger watchdog**: P(city AQI crossing each GRAP stage threshold within 48h) — the exact numbers CAQM decisions need, joined to OUR ledger effect estimate for that stage. New brief type `trigger-watch`: "P(Stage III trigger)=0.82 by Thu 06:00 IST; historical weather-adjusted Stage III effect −18 µg/m³ [CI]; pre-positioning window Wed". Forecast → policy trigger → causal effect → action, one loop (acceptance 24).
+
+### 15.6 Station trust scores (data-quality agent)
+Known real gap: CPCB station data quality is undocumented. Per station: rolling neighbor-consistency z-score (vs kriged expectation), stuck-value detector, completeness → trust ∈ [0,1], published + rendered (badge on map), low-trust stations down-weighted in fusion with weights on record. New brief type `data-quality` (acceptance 25).
+
+### 15.7 Satellite expansion (tiers)
+- **Now, via existing GEE (no new keys)**: Sentinel-2 A/B (10m bare-earth/construction-dust change), Landsat-8/9 thermal (industrial stack activity at registered sites), Aura OMI NO2 (2004+ long-trend context), GPM IMERG precipitation (washout feature), NOAA-21 VIIRS (via FIRMS). Platform count → 12.
+- **Keyed (user registering)**: **GEMS** geostationary hourly NO2/AOD/O3/SO2/HCHO (NIER portal) — kills the diurnal blindness of LEO satellites over India; **INSAT-3D/3DR** AOD (ISRO MOSDAC) — Indian satellite, geostationary AOD. Extractor slots + schema columns reserved; absence never blocks. → up to 15 platforms.
+
+### 15.8 Scientifically usable open products
+`/methods` page: full method equations, assumptions, citations (van Donkelaar, Wolpert, Hsu CWT, Grange deweathering, Burnett GEMM, Wackernagel kriging), versioned. **Downloadable data products**: hourly ensemble grid as Parquet/GeoTIFF + schema docs + lineage — researchers can actually reuse outputs (acceptance 26). Efficiency budget: full publish run < 15 min in Actions (incremental features, cached GEE extracts, tiny stacker).
+
+### New acceptance criteria
+21. Ensemble beats every individual level-0 method on Delhi stratified LOSO; per-method skill table + disagreement index published.
+22. Embassy-network validation on receipts, provably excluded from training (station-id audit in gate).
+23. Calibration: coverage table + reliability diagram on receipts; recalibration documented if applied.
+24. trigger-watch brief renders with P(stage crossing), ledger-cited effect, and pre-positioning window; evidence_refs resolve.
+25. Trust scores published for all active stations; ≥1 real anomalous station surfaced (there always is one) with evidence.
+26. /methods + downloadable hourly grid product live; publish run < 15 min.
+27. plume-alert brief renders with ETA + probability + affected wards from real FIRMS clusters (or real historical episode in replay).
+
+### Sequencing rule (protects critical path)
+Current milestones FIRST: Delhi parquet → acceptance 2/3 skill numbers → causal Ledger. Depth Pack lands in order: 15.1 (models, after acceptance 2/3), 15.3/15.4 (models, cheap — same backtest), 15.6 (data+models), 15.2/15.5 (models+agents), 15.7 GEE-tier (data), 15.8 (web+ops). GEMS/INSAT the moment keys arrive.
+
 ## 12. Risks (worst case on record)
 
 Crowded AQI field → lead demo with receipts in first 30s. Upstream outage at finale → local parquet mirror + replay offline. Monsoon dull live AQI → replay Nov-2025 side-by-side. Skill ≤0 beyond 24h → honest receipts as differentiator. GEE key never lands → GIBS visual + T0 numeric fires; ablation shows the delta where enabled. Judge asks "trained on the replay?" → out-of-fold replay + embargo note, by design.
