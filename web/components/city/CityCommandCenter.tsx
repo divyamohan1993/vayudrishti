@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useResource } from "@/lib/hooks";
-import { manifest as manifestSchema, nowcast as nowcastSchema } from "@/lib/schemas";
+import { useUIStore } from "@/lib/store";
+import {
+  manifest as manifestSchema,
+  nowcast as nowcastSchema,
+  forecast as forecastSchema,
+} from "@/lib/schemas";
 import type { ManifestCity, NowcastWard } from "@/lib/schemas";
 import { MANIFEST_URL, dataUrl } from "@/lib/paths";
 import { AQI_ORDER, AQI_STYLES } from "@/lib/aqi";
@@ -18,6 +23,7 @@ import { StatusNote } from "@/components/ui/StatusNote";
 import { LoadingBlock, Skeleton } from "@/components/ui/Skeleton";
 import { PanelBoundary } from "@/components/ui/PanelBoundary";
 import { WardMap } from "@/components/map/WardMap";
+import { ForecastTimeline } from "@/components/city/ForecastTimeline";
 
 const TIER_META: Record<string, { label: string; tone: "accent" | "neutral" | "outline"; note: string }> = {
   deep: { label: "Deep coverage", tone: "accent", note: "All surfaces, full validation, replay" },
@@ -50,6 +56,19 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
   const nowcastUrl = city ? dataUrl(city.files.nowcast) : null;
   const nowcastState = useResource(nowcastUrl, nowcastSchema);
   const wardsUrl = city ? dataUrl(city.files.wards) : null;
+  const forecastUrl = city ? dataUrl(city.files.forecast) : null;
+  const forecastState = useResource(forecastUrl, forecastSchema);
+
+  const resetForCity = useUIStore((s) => s.resetForCity);
+  useEffect(() => {
+    resetForCity("en");
+  }, [cityId, resetForCity]);
+
+  const selectedWardId = useUIStore((s) => s.selectedWardId);
+  const selectedWardName = useMemo(() => {
+    if (!selectedWardId || nowcastState.status !== "ready") return undefined;
+    return nowcastState.data.wards.find((w) => w.ward_id === selectedWardId)?.name;
+  }, [selectedWardId, nowcastState]);
 
   const cityName = city?.name ?? cityId.charAt(0).toUpperCase() + cityId.slice(1);
   const tier = city ? TIER_META[city.tier] : undefined;
@@ -118,10 +137,26 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
                 cityName={cityName}
                 wardsUrl={wardsUrl}
                 wards={nowcastState.status === "ready" ? nowcastState.data.wards : undefined}
+                forecast={forecastState.status === "ready" ? forecastState.data.wards : undefined}
                 wardsLoading={nowcastState.status === "loading"}
               />
             </Panel>
           </PanelBoundary>
+
+          {forecastState.status === "ready" && (
+            <PanelBoundary label="Forecast timeline">
+              <Panel eyebrow="Forecast" title="24 to 72 hour outlook" aria-label="Forecast timeline">
+                <ForecastTimeline
+                  nowcast={nowcastState.status === "ready" ? nowcastState.data.wards : undefined}
+                  forecast={forecastState.data.wards}
+                  horizons={forecastState.data.horizons_h}
+                  selectedWardName={
+                    selectedWardName ?? undefined
+                  }
+                />
+              </Panel>
+            </PanelBoundary>
+          )}
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">

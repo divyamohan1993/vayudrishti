@@ -3,10 +3,10 @@
 import { useMemo } from "react";
 import { useResource } from "@/lib/hooks";
 import { wardsGeojson as wardsSchema } from "@/lib/schemas";
-import type { NowcastWard } from "@/lib/schemas";
+import type { ForecastWard, NowcastWard } from "@/lib/schemas";
 import type { WardFC } from "@/lib/geo";
+import { buildWardView } from "@/lib/wardView";
 import { useUIStore } from "@/lib/store";
-import { cn } from "@/lib/cn";
 import { AqiChip } from "@/components/ui/AqiChip";
 import { AqiLegend } from "@/components/ui/AqiLegend";
 import { ConfidenceTag } from "@/components/ui/ConfidenceTag";
@@ -18,31 +18,33 @@ export function WardMap({
   cityName,
   wardsUrl,
   wards,
+  forecast,
   wardsLoading,
 }: {
   cityName: string;
   wardsUrl: string | null;
   wards: NowcastWard[] | undefined;
+  forecast?: ForecastWard[];
   wardsLoading: boolean;
 }) {
   const geo = useResource(wardsUrl, wardsSchema);
   const selectedWard = useUIStore((s) => s.selectedWardId);
   const hoveredWard = useUIStore((s) => s.hoveredWardId);
+  const timelineH = useUIStore((s) => s.timelineH);
   const setSelected = useUIStore((s) => s.setSelectedWard);
   const setHovered = useUIStore((s) => s.setHoveredWard);
 
-  const byId = useMemo(() => {
-    const m = new Map<string, NowcastWard>();
-    for (const w of wards ?? []) m.set(w.ward_id, w);
-    return m;
-  }, [wards]);
+  const viewById = useMemo(
+    () => buildWardView(wards, forecast, timelineH),
+    [wards, forecast, timelineH],
+  );
 
   const datumById = useMemo(() => {
     const m = new Map<string, WardDatum>();
-    for (const w of wards ?? [])
-      m.set(w.ward_id, { category: w.category, subindex: w.subindex24h, name: w.name });
+    for (const v of viewById.values())
+      m.set(v.ward_id, { category: v.category, subindex: v.subindex, name: v.name });
     return m;
-  }, [wards]);
+  }, [viewById]);
 
   const options = useMemo(() => {
     if (geo.status !== "ready") return [] as { id: string; name: string }[];
@@ -51,11 +53,11 @@ export function WardMap({
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [geo]);
 
-  const focusWard = byId.get(hoveredWard ?? "") ?? byId.get(selectedWard ?? "");
+  const focus = viewById.get(hoveredWard ?? "") ?? viewById.get(selectedWard ?? "");
+  const horizonLabel = timelineH === 0 ? "now" : `+${timelineH}h forecast`;
 
   return (
     <div className="flex flex-col gap-3">
-      {/* Control row: accessible ward picker (keyboard + screen reader path) */}
       <div className="flex flex-wrap items-center gap-2">
         <label className="flex items-center gap-2 text-xs text-ink-mute">
           <span className="eyebrow">Ward</span>
@@ -86,7 +88,6 @@ export function WardMap({
         )}
       </div>
 
-      {/* Map surface */}
       <div
         className="relative min-h-[380px] flex-1 overflow-hidden rounded-[var(--radius-md)] border lg:min-h-[520px]"
         style={{ borderColor: "var(--line)", backgroundColor: "var(--color-void)" }}
@@ -109,39 +110,31 @@ export function WardMap({
               onHover={setHovered}
               cityName={cityName}
             />
-            {/* Live ward readout */}
             <div
               className="pointer-events-none absolute left-3 top-3 max-w-[15rem] rounded-[var(--radius-sm)] border px-3 py-2 text-xs backdrop-blur"
-              style={{
-                borderColor: "var(--line)",
-                background: "color-mix(in oklab, var(--color-surface) 78%, transparent)",
-              }}
+              style={{ borderColor: "var(--line)", background: "color-mix(in oklab, var(--color-surface) 78%, transparent)" }}
               aria-live="polite"
             >
-              {focusWard ? (
+              {focus ? (
                 <div className="flex flex-col gap-1.5">
-                  <span className="truncate font-medium text-ink" title={focusWard.name}>
-                    {focusWard.name}
+                  <span className="truncate font-medium text-ink" title={focus.name}>
+                    {focus.name}
                   </span>
                   <div className="flex items-center gap-2">
-                    <AqiChip category={focusWard.category} value={focusWard.subindex24h} variant="solid" />
-                    <ConfidenceTag level={focusWard.confidence} showLabel={false} />
+                    <AqiChip category={focus.category} value={focus.subindex} variant="solid" />
+                    <ConfidenceTag level={focus.confidence} showLabel={false} />
                   </div>
                   <span className="tabular text-[0.7rem] text-ink-mute">
-                    PM2.5 p50 {Math.round(focusWard.pm25_p50)} · p90 {Math.round(focusWard.pm25_p90)} ug/m3
+                    {horizonLabel} · p50 {Math.round(focus.pm25_p50)} · p90 {Math.round(focus.pm25_p90)} ug/m3
                   </span>
                 </div>
               ) : (
-                <span className="text-ink-mute">Hover or pick a ward</span>
+                <span className="text-ink-mute">Showing {horizonLabel}. Hover or pick a ward.</span>
               )}
             </div>
-            {/* Legend */}
             <div
               className="absolute bottom-3 left-3 rounded-[var(--radius-sm)] border px-3 py-2 backdrop-blur"
-              style={{
-                borderColor: "var(--line)",
-                background: "color-mix(in oklab, var(--color-surface) 78%, transparent)",
-              }}
+              style={{ borderColor: "var(--line)", background: "color-mix(in oklab, var(--color-surface) 80%, transparent)" }}
             >
               <AqiLegend orientation="horizontal" />
             </div>
