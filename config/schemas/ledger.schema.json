@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/ledger.schema.json",
+  "title": "VayuDrishti Intervention Ledger — Health Ledger (Delhi flagship)",
+  "description": "Spec 13, 16, 17. GEMM (Burnett et al. PNAS 2018) exposure-response + WorldPop ward population -> avoided exposure (person-ug/m3-hours) and avoided premature deaths per ward, plus a diverging per-ward weather-adjusted effect (effect_ugm3, negative = reduction), city-level totals with a PROPERLY combined CI, and counterfactual timing scenarios. All values are labeled MODELED ESTIMATES with CIs. avoided_deaths may be negative (a stage that worsened air), published honestly.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "totals", "wards", "counterfactuals", "citations"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["avoided_exposure_pugh", "avoided_deaths", "ci_low", "ci_high"],
+      "description": "City-level totals. ci_low/ci_high are a properly combined CI, NOT a naive sum of per-ward CIs.",
+      "properties": {
+        "avoided_exposure_pugh": { "type": "number" },
+        "avoided_deaths": { "type": "number" },
+        "ci_low": { "type": "number" },
+        "ci_high": { "type": "number" }
+      }
+    },
+    "wards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "avoided_exposure_pugh", "avoided_deaths", "ci_low", "ci_high", "effect_ugm3", "effect_ci_low", "effect_ci_high"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "avoided_exposure_pugh": { "type": "number" },
+          "avoided_deaths": { "type": "number" },
+          "ci_low": { "type": "number" },
+          "ci_high": { "type": "number" },
+          "effect_ugm3": { "type": "number", "minimum": -2000, "maximum": 2000, "description": "Season weather-adjusted PM2.5 delta attributable to GRAP; negative = reduction (diverging effect map)." },
+          "effect_ci_low": { "type": "number", "minimum": -2000, "maximum": 2000 },
+          "effect_ci_high": { "type": "number", "minimum": -2000, "maximum": 2000 },
+          "by_stage": {
+            "type": "array",
+            "description": "Optional per-stage effect for stage-filtered maps; season aggregate alone is acceptable for freeze.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["stage_transition", "effect_ugm3"],
+              "properties": {
+                "stage_transition": { "type": "string", "maxLength": 120 },
+                "effect_ugm3": { "type": "number", "minimum": -2000, "maximum": 2000 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "counterfactuals": {
+      "type": "array",
+      "description": "Timing-shift scenarios; the slider snaps to these modeled points (no fabricated intermediates).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenario", "shift_hours", "delta_exposure", "delta_deaths", "ci_low", "ci_high"],
+        "properties": {
+          "scenario": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "shift_hours": { "type": "integer", "minimum": -168, "maximum": 168, "description": "Negative = act earlier." },
+          "delta_exposure": { "type": "number" },
+          "delta_deaths": { "type": "number" },
+          "ci_low": { "type": "number" },
+          "ci_high": { "type": "number" }
+        }
+      }
+    },
+    "citations": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "url"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "url": { "type": "string", "format": "uri", "maxLength": 500 }
+        }
+      }
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 400 }
+    }
+  }
+}

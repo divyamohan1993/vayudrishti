@@ -1,0 +1,9 @@
+{
+  "generated_at": "2026-07-22T06:00:00Z",
+  "fixture": true,
+  "honesty_notes": ["poisoned fixture for acceptance 13"],
+  "cities": {},
+  "lineage": [
+    {"source": "data.gov.in", "base_url": "https://api.data.gov.in/resource/3b01bcb8?api-key=LEAKED_SECRET_KEY", "resource_id": "3b01bcb8", "fetched_at": "2026-07-22T06:00:00Z", "rows": 10}
+  ]
+}

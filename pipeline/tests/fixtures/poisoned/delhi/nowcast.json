@@ -1,0 +1,11 @@
+{
+  "generated_at": "2026-07-22T06:00:00Z",
+  "fixture": true,
+  "grid_meta": {"lat0": 28.4, "lon0": 76.83, "cell_deg": 0.01, "crs": "EPSG:4326"},
+  "grid": [
+    {"cell_id": "delhi_0_0", "row": 0, "col": 0, "pm25_p50": 99999, "pm25_p90": 99999, "subindex24h": 171, "category": "Moderate"}
+  ],
+  "wards": [
+    {"ward_id": "delhi_273", "name": "<script>alert(document.cookie)</script>", "pm25_p50": 40, "pm25_p90": 60, "subindex24h": 75, "category": "Satisfactory", "confidence": "high"}
+  ]
+}

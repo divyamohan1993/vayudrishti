@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/replay-index.schema.json",
+  "title": "VayuDrishti Replay Index (per city)",
+  "description": "Per-city index of available replay dates (spec 8, 11). Published at web/public/data/{city}/replay/index.json. Each date dir holds nowcast.json + forecast.json with the SAME shapes as the live files, built from OUT-OF-FOLD predictions only. Nov-2025 Delhi window is the demo, works offline.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["city", "generated_at", "window", "dates"],
+  "properties": {
+    "city": { "type": "string", "pattern": "^[a-z]+$" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start", "end"],
+      "properties": {
+        "start": { "type": "string", "format": "date" },
+        "end": { "type": "string", "format": "date" }
+      }
+    },
+    "dates": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "format": "date" },
+      "description": "Available replay dates (YYYY-MM-DD). Each has replay/{date}/nowcast.json + forecast.json."
+    },
+    "note": { "type": "string", "maxLength": 500, "description": "Out-of-fold + embargo provenance note." }
+  }
+}

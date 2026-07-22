@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/interventions.schema.json",
+  "title": "VayuDrishti Intervention Ledger — Interventions (Delhi flagship)",
+  "description": "Spec 13. Real Delhi GRAP 2025-26 stage calendar (every entry traces to a cited CAQM order), a raw-vs-weather-normalized PM2.5 series for the ribbon chart (Grange & Carslaw 2019 deweathering), and event-study effect estimates with block-bootstrap CIs and placebo tests. effect_ugm3 < 0 means GRAP reduced PM2.5. A CI spanning 0 is a null accountability finding (published honestly).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "calendar", "series", "effects"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "calendar": {
+      "type": "array",
+      "minItems": 1,
+      "description": "GRAP stage active windows, each with the CAQM order URL (public record).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage", "start_utc", "source_url"],
+        "properties": {
+          "stage": { "type": "string", "enum": ["GRAP-I", "GRAP-II", "GRAP-III", "GRAP-IV"] },
+          "start_utc": { "type": "string", "format": "date-time" },
+          "end_utc": { "type": ["string", "null"], "format": "date-time" },
+          "source_url": { "type": "string", "format": "uri", "maxLength": 500 }
+        }
+      }
+    },
+    "series": {
+      "type": "array",
+      "minItems": 1,
+      "description": "City-level (population/area-weighted) PM2.5 over the GRAP window: raw vs weather-normalized. Ribbon-chart hero.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ts_utc", "pm25_raw", "pm25_normalized"],
+        "properties": {
+          "ts_utc": { "type": "string", "format": "date-time" },
+          "pm25_raw": { "type": "number", "minimum": 0, "maximum": 2000 },
+          "pm25_normalized": { "type": "number", "minimum": 0, "maximum": 2000 },
+          "pm25_normalized_p90": { "type": "number", "minimum": 0, "maximum": 2000 }
+        }
+      }
+    },
+    "effects": {
+      "type": "array",
+      "description": "Event-study effect per stage transition on the weather-normalized series.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["stage_transition", "effect_ugm3", "ci_low", "ci_high", "placebo_pass", "n_days", "method_notes"],
+        "properties": {
+          "stage_transition": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "effect_ugm3": { "type": "number", "minimum": -2000, "maximum": 2000 },
+          "ci_low": { "type": "number", "minimum": -2000, "maximum": 2000 },
+          "ci_high": { "type": "number", "minimum": -2000, "maximum": 2000 },
+          "placebo_pass": { "type": "boolean" },
+          "n_days": { "type": "integer", "minimum": 0, "maximum": 400 },
+          "method_notes": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      }
+    }
+  }
+}

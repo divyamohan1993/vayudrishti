@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/enforcement.schema.json",
+  "title": "VayuDrishti Enforcement Queue",
+  "description": "Wards ranked by MEASURED signals only (spec 5.4): exceedance persistence x 72h trend x population/vulnerability. Attribution is a confidence-tagged label, NOT a rank multiplier. 'ranked' is ordered by descending priority_score. action is a fixed-taxonomy i18n key.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "ranked"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "ranked": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "source_label", "confidence", "priority_score", "evidence", "action"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "source_label": {
+            "type": "string",
+            "enum": ["traffic", "industry", "biomass", "dust", "residential_other", "mixed"]
+          },
+          "confidence": { "type": "string", "enum": ["high", "med", "low"] },
+          "priority_score": { "type": "number", "minimum": 0, "maximum": 100 },
+          "evidence": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["trend_72h", "persistence_days", "exceedance_pct"],
+            "properties": {
+              "trend_72h": {
+                "type": "array",
+                "description": "Recent PM2.5 sub-index or ug/m3 trajectory for the card sparkline.",
+                "items": { "type": "number", "minimum": 0, "maximum": 2000 },
+                "minItems": 0,
+                "maxItems": 96
+              },
+              "persistence_days": { "type": "integer", "minimum": 0, "maximum": 400 },
+              "exceedance_pct": { "type": "number", "minimum": 0, "maximum": 100 }
+            }
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "deploy_water_sprinkling",
+              "halt_construction_dust",
+              "intensify_mechanized_sweeping",
+              "reroute_divert_heavy_traffic",
+              "inspect_industrial_emissions",
+              "ban_open_biomass_burning",
+              "issue_public_health_advisory",
+              "monitor_no_action"
+            ]
+          }
+        }
+      }
+    }
+  }
+}

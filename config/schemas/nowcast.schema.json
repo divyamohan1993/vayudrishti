@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/nowcast.schema.json",
+  "title": "VayuDrishti Nowcast",
+  "description": "Spatial gap-filled nowcast on the 0.01 degree grid plus ward rollups. Owner: vayu-models. Contract per spec 2026-07-22 section 8. cell_id convention section 5.0: {city}_{row}_{col}. ward_id convention section 5.0: {city}_{zeropad3(id)}. Headline metric is PM2.5 sub-index on the trailing-24h mean, labeled 'PM2.5 sub-index (24h)'.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "grid_meta", "grid", "wards"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO-8601 with Z suffix, per section 5.0 storage convention."
+    },
+    "fixture": {
+      "type": "boolean",
+      "description": "Optional. Present and true only on fixture/sample data. Absent or false on real published data. Consumers show a 'sample data' banner when true."
+    },
+    "grid_meta": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lat0", "lon0", "cell_deg", "crs"],
+      "properties": {
+        "lat0": { "type": "number", "description": "SW-corner origin latitude, city bbox floored to 0.01 deg." },
+        "lon0": { "type": "number", "description": "SW-corner origin longitude, city bbox floored to 0.01 deg." },
+        "cell_deg": { "type": "number", "exclusiveMinimum": 0, "description": "Cell edge in degrees. 0.01 per section 5.0." },
+        "crs": { "type": "string", "const": "EPSG:4326" }
+      }
+    },
+    "grid": {
+      "type": "array",
+      "description": "Flat array of grid cells. Reconstruct cell centroid or SW corner as lat = lat0 + row*cell_deg, lon = lon0 + col*cell_deg.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["cell_id", "row", "col", "pm25_p50", "pm25_p90", "subindex24h", "category"],
+        "properties": {
+          "cell_id": { "type": "string", "pattern": "^[a-z]+_[0-9]+_[0-9]+$", "description": "{city}_{row}_{col}." },
+          "row": { "type": "integer", "minimum": 0 },
+          "col": { "type": "integer", "minimum": 0 },
+          "pm25_p50": { "type": "number", "minimum": 0, "maximum": 2000, "description": "PM2.5 ug/m3, median quantile." },
+          "pm25_p90": { "type": "number", "minimum": 0, "maximum": 2000, "description": "PM2.5 ug/m3, 90th-percentile quantile. Content gate additionally enforces p90 >= p50." },
+          "subindex24h": { "type": "number", "minimum": 0, "maximum": 500, "description": "CPCB PM2.5 sub-index on the trailing-24h mean. Capped at 500." },
+          "category": { "type": "string", "enum": ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"] }
+        }
+      }
+    },
+    "wards": {
+      "type": "array",
+      "description": "Ward-level rollups (area-weighted cell aggregation). ward_id joins to wards.geojson.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "name", "pm25_p50", "pm25_p90", "subindex24h", "category", "confidence"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "pm25_p50": { "type": "number", "minimum": 0, "maximum": 2000 },
+          "pm25_p90": { "type": "number", "minimum": 0, "maximum": 2000 },
+          "subindex24h": { "type": "number", "minimum": 0, "maximum": 500 },
+          "category": { "type": "string", "enum": ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"] },
+          "confidence": { "type": "string", "enum": ["high", "med", "low"] }
+        }
+      }
+    }
+  }
+}

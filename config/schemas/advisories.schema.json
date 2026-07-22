@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/advisories.schema.json",
+  "title": "VayuDrishti Citizen Advisories",
+  "description": "Per-ward advisory text (spec 5.5) generated at publish time from LLM-authored templates (runtime LLM-free). Text is DATA: plain text only, sanitized (HTML/control chars stripped), rendered via escaped DOM. langs: en + hi required, regional optional (Mumbai mr).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "wards"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "wards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "risk_level", "langs"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "risk_level": { "type": "string", "enum": ["low", "moderate", "high", "severe"] },
+          "langs": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["en", "hi"],
+            "properties": {
+              "en": { "type": "string", "minLength": 1, "maxLength": 600 },
+              "hi": { "type": "string", "minLength": 1, "maxLength": 600 },
+              "regional": { "type": "string", "minLength": 1, "maxLength": 600 }
+            }
+          }
+        }
+      }
+    }
+  }
+}

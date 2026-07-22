@@ -1,0 +1,176 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/receipts.schema.json",
+  "title": "VayuDrishti Receipts",
+  "description": "The evidence page (spec 8, 13). Every model claim with its validation number, honesty notes, lineage (base_url + resource_id only, NO query strings), the CPCB methodology table, and the Intervention Ledger novelty statement + prior-art + method citations. skill_pct MAY be negative (reported honestly).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "cities", "honesty_notes", "lineage"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "honesty_notes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1, "maxLength": 600 }
+    },
+    "methodology": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "CPCB AQI methodology for /about-data + /receipts (spec 5.0).",
+      "properties": {
+        "headline_label": { "type": "string" },
+        "severe_note": { "type": "string", "maxLength": 600 },
+        "aqi_breakpoints": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["pollutant", "unit", "category", "conc_low", "conc_high", "index_low", "index_high", "extrapolated"],
+            "properties": {
+              "pollutant": { "type": "string" },
+              "unit": { "type": "string" },
+              "category": { "type": "string", "enum": ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"] },
+              "conc_low": { "type": "number" },
+              "conc_high": { "type": "number" },
+              "index_low": { "type": "number" },
+              "index_high": { "type": "number" },
+              "extrapolated": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "ledger": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Intervention Ledger academic framing (spec 13). novelty_statement is the exact scoped wording.",
+      "required": ["novelty_statement", "prior_art", "method_citations"],
+      "properties": {
+        "novelty_statement": { "type": "string", "minLength": 1, "maxLength": 1500 },
+        "prior_art": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "url": { "type": "string", "format": "uri", "maxLength": 500 }
+            }
+          }
+        },
+        "method_citations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["label", "url"],
+            "properties": {
+              "label": { "type": "string", "minLength": 1, "maxLength": 200 },
+              "url": { "type": "string", "format": "uri", "maxLength": 500 },
+              "used_for": { "type": "string", "maxLength": 200 }
+            }
+          }
+        }
+      }
+    },
+    "cities": {
+      "type": "object",
+      "description": "Per-city validation keyed by slug.",
+      "propertyNames": { "pattern": "^[a-z]+$" },
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "nowcast_cv": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["baseline", "buckets"],
+            "properties": {
+              "baseline": { "type": "string" },
+              "buckets": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["dist_km", "model_rmse", "idw_rmse", "n"],
+                  "properties": {
+                    "dist_km": { "type": "number", "minimum": 0 },
+                    "model_rmse": { "type": "number", "minimum": 0 },
+                    "idw_rmse": { "type": "number", "minimum": 0 },
+                    "n": { "type": "integer", "minimum": 0 }
+                  }
+                }
+              }
+            }
+          },
+          "forecast": {
+            "type": "object",
+            "propertyNames": { "enum": ["24", "48", "72"] },
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["rmse", "mae", "persistence_rmse", "seasonal_naive_rmse", "skill_pct", "n", "embargo_h"],
+              "properties": {
+                "rmse": { "type": "number", "minimum": 0 },
+                "mae": { "type": "number", "minimum": 0 },
+                "persistence_rmse": { "type": "number", "minimum": 0 },
+                "seasonal_naive_rmse": { "type": "number", "minimum": 0 },
+                "skill_pct": { "type": "number" },
+                "n": { "type": "integer", "minimum": 0 },
+                "embargo_h": { "type": "integer", "minimum": 0 }
+              }
+            }
+          },
+          "attribution_directional_checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["check_name", "expected", "observed", "pass"],
+              "properties": {
+                "check_name": { "type": "string", "minLength": 1, "maxLength": 160 },
+                "expected": { "type": ["string", "number"] },
+                "observed": { "type": ["string", "number"] },
+                "pass": { "type": "boolean" },
+                "notes": { "type": "string", "maxLength": 300 }
+              }
+            }
+          },
+          "ablation": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "With/without GEE numeric satellite features (real; GEE live).",
+            "properties": {
+              "note": { "type": "string", "maxLength": 400 },
+              "metric": { "type": "string" },
+              "with_sat": { "type": "number" },
+              "without_sat": { "type": "number" },
+              "delta_pct": { "type": "number" }
+            }
+          },
+          "intervention_assumptions": {
+            "type": "array",
+            "items": { "type": "string", "minLength": 1, "maxLength": 400 }
+          }
+        }
+      }
+    },
+    "lineage": {
+      "type": "array",
+      "description": "Data provenance. base_url carries NO query string (spec 7); the content gate rejects any '?'.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source", "base_url", "resource_id", "fetched_at", "rows"],
+        "properties": {
+          "source": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "base_url": { "type": "string", "format": "uri", "maxLength": 400, "not": { "pattern": "\\?" } },
+          "resource_id": { "type": "string", "maxLength": 200 },
+          "fetched_at": { "type": "string", "format": "date-time" },
+          "rows": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}

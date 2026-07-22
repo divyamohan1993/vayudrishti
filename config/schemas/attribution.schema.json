@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/attribution.schema.json",
+  "title": "VayuDrishti Source Attribution",
+  "description": "Per-ward source apportionment as a LABELED ESTIMATE (spec 5.3). CPF wind-sector analysis + land-use/inventory-anchored heuristics. NEVER claims measured emissions. Envelope adds generated_at + fixture flag to the section-8 array payload (announced to vayu-web).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "wards"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "wards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "shares", "confidence", "method_notes"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "shares": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["traffic", "industry", "biomass", "dust", "residential_other"],
+            "description": "Fractional source shares, each 0..1, summing to ~1.0 (content gate enforces the sum within tolerance).",
+            "properties": {
+              "traffic": { "type": "number", "minimum": 0, "maximum": 1 },
+              "industry": { "type": "number", "minimum": 0, "maximum": 1 },
+              "biomass": { "type": "number", "minimum": 0, "maximum": 1 },
+              "dust": { "type": "number", "minimum": 0, "maximum": 1 },
+              "residential_other": { "type": "number", "minimum": 0, "maximum": 1 }
+            }
+          },
+          "confidence": { "type": "string", "enum": ["high", "med", "low"] },
+          "method_notes": { "type": "string", "minLength": 1, "maxLength": 500 }
+        }
+      }
+    }
+  }
+}

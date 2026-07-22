@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/forecast.schema.json",
+  "title": "VayuDrishti Forecast",
+  "description": "Ward-level 24/48/72h forecast. Owner: vayu-models. Contract per spec 2026-07-22 section 8. Forecast series starts at h=24; the t=0 seam is the nowcast ward value (consumer stitches it). Skill reported honestly on /receipts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "horizons_h", "wards"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time" },
+    "fixture": { "type": "boolean" },
+    "horizons_h": {
+      "type": "array",
+      "items": { "type": "integer", "enum": [24, 48, 72] },
+      "uniqueItems": true,
+      "minItems": 1,
+      "maxItems": 3,
+      "description": "Forecast horizons in hours. Frozen at [24,48,72] per section 5.2."
+    },
+    "wards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["ward_id", "name", "series"],
+        "properties": {
+          "ward_id": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+          "name": { "type": "string", "minLength": 1, "maxLength": 200 },
+          "series": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["h", "pm25_p50", "pm25_p90", "subindex24h", "category", "confidence"],
+              "properties": {
+                "h": { "type": "integer", "enum": [24, 48, 72] },
+                "pm25_p50": { "type": "number", "minimum": 0, "maximum": 2000 },
+                "pm25_p90": { "type": "number", "minimum": 0, "maximum": 2000 },
+                "subindex24h": { "type": "number", "minimum": 0, "maximum": 500 },
+                "category": { "type": "string", "enum": ["Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe"] },
+                "confidence": { "type": "string", "enum": ["high", "med", "low"] }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
