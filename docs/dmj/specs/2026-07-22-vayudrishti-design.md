@@ -122,7 +122,7 @@ flowchart LR
 
 1. `uv run vayu publish --city delhi` exit 0, all §8 files from real fetched data, lineage populated, no query strings.
 2. Delhi 24h forecast skill_pct > 0 vs persistence (rolling-origin, embargo stated); 48/72h + Mumbai reported honestly on `/receipts`.
-3. Delhi nowcast stratified LOSO curve beats IDW at every distance bucket ≤5km.
+3. Delhi nowcast stratified LOSO curve beats IDW at every distance bucket ≤5km. **OUTCOME 2026-07-23: NOT MET — kept on record, not rewritten.** With 100% land-use + 71% satellite, fusion loses to IDW at ≤5km buckets and wins at ≥8.6km. Post-hoc diagnosis (disclosed as post-hoc on /receipts): LOSO at station-dense holdouts structurally favors IDW because neighbor-IDW is fusion's own dominant feature; fusion's value is interior gap-fill at range — the actual product claim. Criterion was miscalibrated to the product; the honest receipt shows the full distance curve + satellite ablation (+0.3%, monsoon-sparse S5P).
 4. `pnpm build` green (typecheck+lint); `/`, `/city/delhi`, `/receipts`, `/pitch`, `/about-data` render.
 5. Delhi deep + Mumbai standard + Bengaluru config-only all selectable with live JSONs; "add a city" = YAML + pipeline run, demoed.
 6. GIBS overlays toggle; WebGL2-absent fallback renders choropleth.
