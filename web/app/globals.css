@@ -1,0 +1,377 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   VayuDrishti — "Orbital Night Watch"
+   Visual identity: an Indian city at night seen from a weather satellite.
+   - Chrome/depth: deep atmospheric slate-teal (the dark troposphere).
+   - Accent: restrained airglow cyan (blue-cyan, hue-separated from AQI green
+     so it never reads as a data value).
+   - Text: warm bone (keeps it human, not clinical neon).
+   - Data warm ramp: CPCB National AQI (Good -> Severe), always paired with a
+     pattern + label (never colour-only).
+   - Data cool ramp: indigo -> cyan for covariates (satellite/wind/uncertainty),
+     a second meaning-distinct family that never collides with AQI.
+   Deliberate single dark identity (command-center psychology). AA verified.
+   ============================================================================= */
+
+@theme {
+  /* ---- Depth: atmospheric slate-teal night ---- */
+  --color-void: #050b0d;
+  --color-abyss: #081418;
+  --color-deep: #0b1c22;
+  --color-surface: #0f2830;
+  --color-surface-2: #143842;
+  --color-surface-3: #1b4a56;
+
+  /* ---- Ink: warm bone (all AA on abyss/surface) ---- */
+  --color-ink: #f4efe4;
+  --color-ink-soft: #ddd7c8;
+  --color-ink-mute: #9ba7a3;
+  --color-ink-dim: #7c8a86;
+
+  /* ---- Airglow: restrained blue-cyan accent ---- */
+  --color-airglow: #37d0e6;
+  --color-airglow-bright: #74e4f2;
+  --color-airglow-dim: #1c8394;
+  --color-airglow-ghost: rgba(55, 208, 230, 0.12);
+
+  /* ---- Ember: rare warm signal — header live-dot ONLY, never on map/legend ---- */
+  --color-ember: #f0a24b;
+
+  /* ---- CPCB National AQI ramp (the data language) ---- */
+  --color-aqi-good: #4ea72e;
+  --color-aqi-satisfactory: #a3c853;
+  --color-aqi-moderate: #f2d13c;
+  --color-aqi-poor: #f29434;
+  --color-aqi-verypoor: #e5533c;
+  --color-aqi-severe: #a02c22;
+
+  /* ---- Cool covariate ramp (satellite / wind / uncertainty) ---- */
+  --color-cov-1: #2b2f7a;
+  --color-cov-2: #3d5bc4;
+  --color-cov-3: #3e9bd8;
+  --color-cov-4: #37d0e6;
+
+  /* ---- Diverging ramp for the Intervention effect map ----
+     Validated blue<->red pair (dataviz skill; teal<->orange failed the CVD/
+     lightness gates). blue = GRAP REDUCED PM2.5 (good), red = increased (bad),
+     gray midpoint = no detectable effect. Sign also carried by texture angle. */
+  --color-div-neg-2: #1c5cab;
+  --color-div-neg-1: #3e86e0;
+  --color-div-zero: #47555d;
+  --color-div-pos-1: #e06a6a;
+  --color-div-pos-2: #c0392b;
+
+  /* ---- Source attribution categorical (validated CVD-safe on this surface,
+     dataviz skill; worst adjacent CVD 8.4, normal-vision 19.3). FIXED order;
+     always paired with a direct label. 'mixed' is a neutral catch-all. ---- */
+  --color-src-traffic: #3987e5;
+  --color-src-industry: #d95926;
+  --color-src-biomass: #199e70;
+  --color-src-dust: #c98500;
+  --color-src-residential: #d55181;
+  --color-src-mixed: #8a97a0;
+
+  /* ---- Typography (self-hosted variable, via next/font/local) ---- */
+  --font-display: var(--font-archivo), "Archivo Variable", system-ui, sans-serif;
+  --font-body: var(--font-hanken), "Hanken Grotesk Variable", system-ui, sans-serif;
+  --font-mono: var(--font-spline-mono), "Spline Sans Mono Variable", ui-monospace,
+    monospace;
+  --font-sans: var(--font-body);
+
+  /* ---- Radii ---- */
+  --radius-xs: 4px;
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 16px;
+  --radius-xl: 22px;
+
+  /* ---- Motion ---- */
+  --ease-atmos: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --dur-fast: 130ms;
+  --dur-base: 220ms;
+  --dur-slow: 420ms;
+}
+
+/* Semantic aliases + borders (kept out of @theme so they don't mint utilities) */
+:root {
+  --line: rgba(122, 200, 210, 0.13);
+  --line-strong: rgba(122, 200, 210, 0.24);
+  --line-airglow: rgba(55, 208, 230, 0.38);
+  --glow-airglow: 0 0 0 1px rgba(55, 208, 230, 0.35),
+    0 0 22px -6px rgba(55, 208, 230, 0.55);
+  --shadow-panel: 0 1px 0 0 rgba(255, 255, 255, 0.03) inset,
+    0 18px 40px -24px rgba(0, 0, 0, 0.9);
+  color-scheme: dark;
+}
+
+/* =============================================================================
+   Base
+   ============================================================================= */
+
+*,
+*::before,
+*::after {
+  border-color: var(--line);
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  scrollbar-color: var(--color-surface-3) transparent;
+}
+
+body {
+  background-color: var(--color-abyss);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-feature-settings: "cv01", "ss01";
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  /* Atmospheric depth: faint airglow + tropospheric haze, deliberately restrained */
+  background-image: radial-gradient(
+      1200px 620px at 14% -12%,
+      rgba(55, 208, 230, 0.055),
+      transparent 60%
+    ),
+    radial-gradient(1000px 720px at 112% 8%, rgba(43, 47, 122, 0.11), transparent 55%),
+    radial-gradient(900px 900px at 50% 128%, rgba(28, 131, 148, 0.05), transparent 60%);
+  background-attachment: fixed;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-display);
+  font-weight: 640;
+  letter-spacing: -0.012em;
+  line-height: 1.08;
+  color: var(--color-ink);
+  text-wrap: balance;
+}
+
+p {
+  text-wrap: pretty;
+}
+
+/* Numeric/instrument readouts */
+.tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  letter-spacing: -0.01em;
+}
+
+/* Eyebrow / provenance labels: structure that encodes meaning */
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-mute);
+}
+
+a {
+  color: var(--color-airglow);
+  text-underline-offset: 0.2em;
+  text-decoration-color: var(--line-airglow);
+}
+a:hover {
+  color: var(--color-airglow-bright);
+}
+
+/* Focus: unmistakable, keyboard-first */
+:focus-visible {
+  outline: 2px solid var(--color-airglow);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+::selection {
+  background: rgba(55, 208, 230, 0.28);
+  color: var(--color-ink);
+}
+
+::-webkit-scrollbar {
+  width: 11px;
+  height: 11px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-surface-3);
+  border-radius: 99px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-airglow-dim);
+  background-clip: content-box;
+}
+
+/* Skip link */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 200;
+  transform: translateY(-120%);
+  margin: 0.5rem;
+  padding: 0.6rem 1rem;
+  background: var(--color-surface-2);
+  color: var(--color-ink);
+  border: 1px solid var(--line-airglow);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  transition: transform var(--dur-base) var(--ease-atmos);
+}
+.skip-link:focus {
+  transform: translateY(0);
+}
+
+/* =============================================================================
+   Reusable surfaces
+   ============================================================================= */
+
+.panel {
+  background: color-mix(in oklab, var(--color-surface) 82%, transparent);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(8px) saturate(1.1);
+}
+
+.hairline {
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.bg-grid {
+  background-image: linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: center;
+  -webkit-mask-image: radial-gradient(
+    ellipse 80% 80% at 50% 40%,
+    #000 30%,
+    transparent 78%
+  );
+  mask-image: radial-gradient(ellipse 80% 80% at 50% 40%, #000 30%, transparent 78%);
+}
+
+/* =============================================================================
+   AQI patterns — never colour-only (WCAG). Each category pairs its CPCB colour
+   with a distinct texture; markup always carries the category label too.
+   Overlay uses dark ink lines so the texture reads on any hue.
+   ============================================================================= */
+
+.pat {
+  background-repeat: repeat;
+}
+.pat-good {
+  background-image: repeating-linear-gradient(
+    0deg,
+    rgba(5, 11, 13, 0.34) 0 1.5px,
+    transparent 1.5px 7px
+  );
+}
+.pat-satisfactory {
+  background-image: radial-gradient(rgba(5, 11, 13, 0.4) 1.2px, transparent 1.4px);
+  background-size: 6px 6px;
+}
+.pat-moderate {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(5, 11, 13, 0.34) 0 2px,
+    transparent 2px 7px
+  );
+}
+.pat-poor {
+  background-image: repeating-linear-gradient(
+      45deg,
+      rgba(5, 11, 13, 0.32) 0 2px,
+      transparent 2px 7px
+    ),
+    repeating-linear-gradient(-45deg, rgba(5, 11, 13, 0.32) 0 2px, transparent 2px 7px);
+}
+.pat-verypoor {
+  background-image: repeating-linear-gradient(
+    -45deg,
+    rgba(5, 11, 13, 0.42) 0 3px,
+    transparent 3px 6px
+  );
+}
+.pat-severe {
+  background-image: repeating-linear-gradient(
+      90deg,
+      rgba(5, 11, 13, 0.45) 0 2px,
+      transparent 2px 6px
+    ),
+    repeating-linear-gradient(0deg, rgba(5, 11, 13, 0.3) 0 2px, transparent 2px 6px);
+}
+
+/* =============================================================================
+   Motion — cinematic by default, silenced on request (WCAG 2.3.3 / 2.2.2)
+   ============================================================================= */
+
+@keyframes vd-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+@keyframes vd-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.35);
+  }
+}
+@keyframes vd-sweep {
+  from {
+    background-position: -160% 0;
+  }
+  to {
+    background-position: 260% 0;
+  }
+}
+
+.animate-rise {
+  animation: vd-rise var(--dur-slow) var(--ease-atmos) both;
+}
+.live-dot {
+  animation: vd-pulse 2.4s var(--ease-standard) infinite;
+}
+.skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--color-surface) 30%,
+    var(--color-surface-2) 50%,
+    var(--color-surface) 70%
+  );
+  background-size: 220% 100%;
+  animation: vd-sweep 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
