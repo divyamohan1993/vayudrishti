@@ -32,6 +32,20 @@ BASE_URL = f"https://{BUCKET}.s3.amazonaws.com/"
 POLLUTANTS = ["pm25", "pm10", "no2", "so2", "o3", "co"]
 ARCHIVE_START = (2025, 2)  # spec backfill window start
 
+# Physical-plausibility caps (ug/m3, CO in mg/m3). CPCB sensors emit error spikes
+# and 9999-style sentinels; values above these are invalid -> NaN. Caps are generous
+# so genuine Delhi winter extremes (PM2.5 ~1000) survive.
+POLLUTANT_MAX = {"pm25": 1500.0, "pm10": 3000.0, "no2": 1000.0, "so2": 1000.0, "o3": 1000.0, "co": 100.0}
+
+
+def clip_invalid(df: pd.DataFrame) -> pd.DataFrame:
+    """NaN out-of-range pollutant values on a wide (per-pollutant-column) frame."""
+    for pol, cap in POLLUTANT_MAX.items():
+        if pol in df.columns:
+            col = pd.to_numeric(df[pol], errors="coerce")
+            df[pol] = col.where((col >= 0) & (col <= cap))
+    return df
+
 
 def _client():
     # UNSIGNED = anonymous (the --no-sign-request equivalent). Thread-safe.
@@ -72,6 +86,8 @@ def _to_hourly(raw: pd.DataFrame) -> pd.DataFrame:
         return pd.DataFrame(columns=["ts_utc", "station_id", "lat", "lon", *POLLUTANTS])
     raw["value"] = pd.to_numeric(raw["value"], errors="coerce")
     raw.loc[raw["value"] < 0, "value"] = pd.NA  # CPCB invalid-data sentinel
+    caps = raw["parameter"].map(POLLUTANT_MAX)  # per-pollutant physical cap
+    raw.loc[raw["value"] > caps, "value"] = pd.NA
     raw["ts_utc"] = pd.to_datetime(raw["datetime"], utc=True).dt.floor("h")
     grouped = (
         raw.groupby(["location_id", "ts_utc", "parameter"], observed=True)["value"]

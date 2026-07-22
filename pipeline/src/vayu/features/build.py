@@ -246,6 +246,7 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
     )
     if base.empty:
         raise RuntimeError(f"OpenAQ backfill returned no rows for {slug}")
+    base = oaq.clip_invalid(base)  # drop sensor-error spikes from cached data
 
     start = f"{oaq.ARCHIVE_START[0]}-{oaq.ARCHIVE_START[1]:02d}-01"
     end = openmeteo.default_end_date()
