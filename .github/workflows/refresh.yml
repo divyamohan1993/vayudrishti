@@ -1,0 +1,103 @@
+name: refresh
+
+# Scheduled data refresh: fetch real sources, publish web JSON, run the content
+# gate, secret-scan the output, then first-party commit ONLY web/public/data/**.
+# Vercel redeploys on that commit. No third-party commit action is used.
+#
+# DEMO FREEZE: DEMO_FREEZE is a repository VARIABLE (Settings > Secrets and
+# variables > Actions > Variables). Set it to 1 on Aug 1-2 to skip the whole job
+# and pin the demo to a known-good deployment. Verify with a manual run:
+#   Actions > refresh > Run workflow  ->  job shows "skipped" while the var is 1.
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'   # every 6 hours (UTC)
+  workflow_dispatch: {}     # manual trigger, also used to verify the freeze toggle
+
+# No `push` trigger on purpose: the data commit below must never re-trigger this.
+
+permissions:
+  contents: write           # sole permission: commit web/public/data/**
+
+concurrency:
+  group: refresh
+  cancel-in-progress: false # never interrupt a mid-publish commit/push
+
+jobs:
+  refresh:
+    # Demo freeze: skip the ENTIRE job when the repo variable is 1.
+    if: ${{ vars.DEMO_FREEZE != '1' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true   # keep the token so the data commit can push
+
+      - name: Set up uv + Python
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          working-directory: pipeline
+
+      - name: Decode GEE service-account key (masked, restricted perms)
+        env:
+          GEE_B64: ${{ secrets.GEE_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -z "${GEE_B64:-}" ]; then
+            echo "No GEE key set; pipeline runs with satellite numeric path off (GIBS visual + T0 fires still work)."
+            exit 0
+          fi
+          umask 077
+          KEY_FILE="$RUNNER_TEMP/gee-sa.json"
+          printf '%s' "$GEE_B64" | base64 -d > "$KEY_FILE"
+          # Mask the decoded secret fields line-by-line so nothing leaks to logs.
+          # (The registered secret itself is auto-masked; this covers the derived file.)
+          for field in private_key private_key_id client_email; do
+            val=$(python3 -c "import json,sys;print(json.load(open(sys.argv[1])).get('$field',''))" "$KEY_FILE" 2>/dev/null || true)
+            printf '%s\n' "$val" | while IFS= read -r line; do
+              [ -n "$line" ] && echo "::add-mask::$line"
+            done
+          done
+          echo "GEE_SERVICE_ACCOUNT_JSON_PATH=$KEY_FILE" >> "$GITHUB_ENV"
+
+      - name: Publish all cities from real sources
+        working-directory: pipeline
+        env:
+          DATA_GOV_IN_API_KEY: ${{ secrets.DATA_GOV_IN_API_KEY }}
+          OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
+          EARTHDATA_TOKEN: ${{ secrets.EARTHDATA_TOKEN }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}   # Nemotron NIM; auto-masked, briefs stage never blocks publish
+          GEE_PROJECT: ${{ vars.GEE_PROJECT }}             # non-secret project id (repo variable)
+          VAYU_WEB_DATA_DIR: ${{ github.workspace }}/web/public/data
+        # --city all is a special value (confirmed by vayu-data), not a --all flag.
+        run: uv run vayu publish --city all
+
+      - name: Content gate (REQUIRED, blocks malformed publish, acceptance 13)
+        working-directory: pipeline
+        # Owned by vayu-models. Exit nonzero on any schema/range/sanitization/lineage
+        # violation, which fails the job before the commit step ever runs.
+        # Uniform --city all (confirmed by vayu-models; matches vayu-data registry).
+        run: uv run vayu gate --city all --data-root ${{ github.workspace }}/web/public/data
+
+      - name: Secret scan on published JSON (acceptance 7)
+        run: sh scripts/secret-scan.sh
+
+      - name: Commit ONLY web/public/data/** (first-party, no-op on no change)
+        run: |
+          git config user.name "vayudrishti-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- web/public/data
+          if git diff --cached --quiet; then
+            echo "No data changes; nothing to commit."
+            exit 0
+          fi
+          git commit -m "chore(data): scheduled refresh $(date -u +%Y-%m-%dT%H:%MZ)
+
+          Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
+          # Rebase onto any concurrent push, then push with an explicit refspec so
+          # this works even if checkout left HEAD detached. refresh targets main.
+          git pull --rebase origin main
+          git push origin HEAD:refs/heads/main

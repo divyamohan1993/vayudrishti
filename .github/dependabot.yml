@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Keep the pinned GitHub Actions current (they are SHA-pinned; Dependabot
+  # bumps the SHA and the version comment together).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "ci"
+
+  # Python pipeline (uv project).
+  - package-ecosystem: "uv"
+    directory: "/pipeline"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    groups:
+      pipeline-minor:
+        update-types: ["minor", "patch"]
+
+  # Web app (pnpm; read under the npm ecosystem).
+  - package-ecosystem: "npm"
+    directory: "/web"
+    schedule:
+      interval: "weekly"
+    commit-message:
+      prefix: "deps"
+    groups:
+      web-minor:
+        update-types: ["minor", "patch"]

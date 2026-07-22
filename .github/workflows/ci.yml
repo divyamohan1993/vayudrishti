@@ -1,0 +1,135 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # --- Secrets: custom grep (always) + pinned gitleaks over tree AND history ---
+  secret-scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout (full history for the gitleaks history scan)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Install gitleaks (version + sha256 pinned)
+        run: |
+          VER=8.30.1
+          SHA=551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+          curl -sSL -o gitleaks.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${VER}/gitleaks_${VER}_linux_x64.tar.gz"
+          echo "${SHA}  gitleaks.tgz" | sha256sum -c -
+          tar -xzf gitleaks.tgz gitleaks
+          sudo install -m 0755 gitleaks /usr/local/bin/gitleaks
+          gitleaks version
+      - name: Secret scan (custom patterns + gitleaks tree + history)
+        run: SCAN_HISTORY=1 sh scripts/secret-scan.sh
+
+  # --- Humanizer: unicode dashes + AI-tell phrasing in SHIPPED prose ----------
+  humanize:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+      - name: Humanize gate (all shipped prose; internal specs excluded)
+        run: |
+          # Gate every tracked prose file except the internal design specs
+          # (docs/dmj/**) and the idea dump, which are team engineering artifacts.
+          files=$(git ls-files '*.md' '*.mdx' '*.markdown' '*.txt' | grep -Ev '^(docs/dmj/|idea\.md$)' || true)
+          if [ -z "$files" ]; then echo "No shipped prose yet; skipping."; exit 0; fi
+          printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 node .humanize/humanize-guard.mjs --gate
+
+  # --- Pipeline (uv project): lint + typecheck + tests + poisoned-fixture gate --
+  pipeline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: detect
+        run: |
+          if [ -f pipeline/pyproject.toml ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "pipeline/ not present yet; steps skip."; fi
+      - name: Set up uv + Python
+        if: steps.detect.outputs.present == 'true'
+        uses: astral-sh/setup-uv@c771a70e6277c0a99b617c7a806ffedaca235ff9 # v9.0.0
+        with:
+          enable-cache: true
+          working-directory: pipeline
+      - name: Sync deps
+        if: steps.detect.outputs.present == 'true'
+        working-directory: pipeline
+        run: uv sync
+      - name: Lint (ruff)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: pipeline
+        run: uv run ruff check .
+      - name: Typecheck (best-effort, non-blocking per vayu-data)
+        if: steps.detect.outputs.present == 'true'
+        continue-on-error: true
+        working-directory: pipeline
+        run: uv run mypy src/vayu
+      - name: Tests
+        if: steps.detect.outputs.present == 'true'
+        working-directory: pipeline
+        run: uv run pytest -q
+      - name: Content gate MUST reject the poisoned fixture (acceptance 13)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: pipeline
+        # Owned by vayu-models: fixtures at pipeline/tests/fixtures/poisoned/delhi/.
+        # The gate MUST exit nonzero here; if it exits 0, CI fails (leak in the gate).
+        run: |
+          if uv run vayu gate --city delhi --data-root tests/fixtures/poisoned; then
+            echo "FAIL: content gate accepted a poisoned fixture (acceptance 13 broken)."
+            exit 1
+          else
+            echo "OK: content gate rejected the poisoned fixture as required."
+          fi
+
+  # --- Web (Next.js static export): lint + typecheck + build ------------------
+  web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: detect
+        run: |
+          if [ -f web/package.json ]; then echo "present=true" >> "$GITHUB_OUTPUT"; else echo "present=false" >> "$GITHUB_OUTPUT"; echo "web/ not present yet; steps skip."; fi
+      - name: Set up pnpm
+        if: steps.detect.outputs.present == 'true'
+        uses: pnpm/action-setup@0ebf47130e4866e96fce0953f49152a61190b271 # v6.0.9
+        with:
+          version: 10
+      - name: Set up Node
+        if: steps.detect.outputs.present == 'true'
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+      - name: Install
+        if: steps.detect.outputs.present == 'true'
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+      - name: Lint
+        if: steps.detect.outputs.present == 'true'
+        working-directory: web
+        run: pnpm lint
+      - name: Build (typecheck runs inside next build; acceptance 4)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: web
+        run: pnpm build
+      - name: Secret scan the built bundle (acceptance 7, no keys in bundle)
+        if: steps.detect.outputs.present == 'true'
+        run: sh scripts/secret-scan.sh
