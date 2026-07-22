@@ -170,6 +170,46 @@ def _run_audit(data_root: Path, cities: list[str]) -> int:
     return 0 if summary["passed"] else 1
 
 
+def _briefs_fixture(data_root: Path, city: str) -> bool:
+    doc = _read_prev(_briefs_path(data_root, city))
+    return bool(doc and doc.get("fixture"))
+
+
+def _assemble_agentlog(
+    prev_log: dict[str, Any],
+    processed: set[str],
+    all_runs: list[dict[str, Any]],
+    audits: list[Any],
+    fixture: bool,
+    gen_at: str,
+) -> dict[str, Any]:
+    """Merge this run's per-city traces into ``prev_log``, replacing ONLY the cities processed
+    this run so a per-city run never clobbers other cities. The audit stamp and fixture flag
+    span ALL published cities (``audits`` is over every city)."""
+    kept = [r for r in (prev_log.get("runs") or []) if r.get("city") not in processed]
+    runs = kept + all_runs
+    ti = sum(r["tokens_in"] for r in runs)
+    to = sum(r["tokens_out"] for r in runs)
+    doc: dict[str, Any] = {
+        "generated_at": gen_at,
+        "model": NIM_MODEL_ID,
+        "runs": runs,
+        "totals": {"tokens_in": ti, "tokens_out": to, "total": ti + to, "calls": len(runs)},
+    }
+    if fixture:
+        doc["fixture"] = True
+    if not runs:
+        doc["stale"] = True
+    if any(a.briefs_audited for a in audits) or runs:
+        doc["audit"] = {
+            "passed": all(a.ok for a in audits),
+            "briefs_audited": sum(a.briefs_audited for a in audits),
+            "refs_checked": sum(a.refs_checked for a in audits),
+            "audited_at": gen_at,
+        }
+    return doc
+
+
 def run(args: argparse.Namespace) -> int:
     from vayu.agents.orchestrator import MAX_CALLS, generate_briefs
 
@@ -183,7 +223,6 @@ def run(args: argparse.Namespace) -> int:
     key = settings.nvidia_api_key
 
     all_runs: list[dict[str, Any]] = []
-    any_fixture = False
     client = None
     cities = _resolve_cities(args.city)
 
@@ -204,7 +243,6 @@ def run(args: argparse.Namespace) -> int:
             )
             _write_json(_briefs_path(data_root, city), briefs_doc.model_dump())
             all_runs.extend(r.model_dump() for r in log_doc.runs)
-            any_fixture = any_fixture or bool(briefs_doc.fixture)
             log.info(
                 "briefs_published",
                 city=city,
@@ -219,32 +257,16 @@ def run(args: argparse.Namespace) -> int:
             log.warning("briefs_unexpected_error", city=city, error=f"{type(exc).__name__}: {exc}")
             _keep_stale_briefs(data_root, city)
 
-    # Global agentlog (aggregated across cities). Absence of runs => stale/empty.
-    ti = sum(r["tokens_in"] for r in all_runs)
-    to = sum(r["tokens_out"] for r in all_runs)
-    agentlog: dict[str, Any] = {
-        "generated_at": utc_iso_z(now_utc()),
-        "model": NIM_MODEL_ID,
-        "runs": all_runs,
-        "totals": {"tokens_in": ti, "tokens_out": to, "total": ti + to, "calls": len(all_runs)},
-    }
-    if any_fixture:
-        agentlog["fixture"] = True
-    if not all_runs:
-        agentlog["stale"] = True
-
-    # Self-audit: re-resolve every ref in the just-written briefs and publish the result as
-    # DATA (acceptance 18 as a stamp, not a client-side claim).
+    # Global agentlog: MERGE this run's per-city traces into the prior file (a per-city run must
+    # not clobber other cities), then self-audit ALL published cities so the stamp + fixture flag
+    # span the whole set, not just the cities processed this run.
     from vayu.agents.audit import audit_city
 
-    audits = [audit_city(data_root, c) for c in cities]
-    if any(a.briefs_audited for a in audits) or all_runs:
-        agentlog["audit"] = {
-            "passed": all(a.ok for a in audits),
-            "briefs_audited": sum(a.briefs_audited for a in audits),
-            "refs_checked": sum(a.refs_checked for a in audits),
-            "audited_at": utc_iso_z(now_utc()),
-        }
+    gen_at = utc_iso_z(now_utc())
+    audits = [audit_city(data_root, c) for c in CITIES]
+    fixture = any(_briefs_fixture(data_root, c) for c in CITIES)
+    prev_log = _read_prev(_agentlog_path(data_root)) or {}
+    agentlog = _assemble_agentlog(prev_log, set(cities), all_runs, audits, fixture, gen_at)
     try:
         _write_json(_agentlog_path(data_root), agentlog)
     except NimError as exc:

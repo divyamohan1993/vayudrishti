@@ -320,3 +320,55 @@ def test_missing_key_is_a_clean_stale_keep(monkeypatch, data_root):
     assert rc == 0
     doc = json.loads((data_root / "delhi" / "briefs.json").read_text(encoding="utf-8"))
     assert doc["stale"] is True
+
+
+# ---------------------------------------------------------------- agentlog merge (per-city)
+
+
+def _run_row(city, role="situation_analyst", ti=10, to=5):
+    return {
+        "role": role,
+        "city": city,
+        "model": "m",
+        "reasoning_budget": 1,
+        "tokens_in": ti,
+        "tokens_out": to,
+        "duration_ms": 1,
+    }
+
+
+def test_agentlog_merge_preserves_other_cities():
+    from vayu.agents.audit import CityAudit
+    from vayu.commands.briefs import _assemble_agentlog
+
+    prev = {"runs": [_run_row("delhi")]}
+    audits = [CityAudit("delhi", 1, 11), CityAudit("mumbai", 1, 5), CityAudit("bengaluru", 0, 0)]
+    log = _assemble_agentlog(
+        prev, {"mumbai"}, [_run_row("mumbai", ti=20, to=8)], audits, False, "2025-11-08T06:00:00Z"
+    )
+    assert sorted({r["city"] for r in log["runs"]}) == ["delhi", "mumbai"]  # delhi preserved
+    assert log["totals"]["calls"] == 2
+    assert log["audit"] == {
+        "passed": True,
+        "briefs_audited": 2,
+        "refs_checked": 16,
+        "audited_at": "2025-11-08T06:00:00Z",
+    }
+
+    # Re-running mumbai REPLACES its runs (no duplication); delhi still preserved.
+    log2 = _assemble_agentlog(
+        log, {"mumbai"}, [_run_row("mumbai", role="action_drafter")], audits, False, "t"
+    )
+    mumbai_runs = [r for r in log2["runs"] if r["city"] == "mumbai"]
+    assert len(mumbai_runs) == 1 and mumbai_runs[0]["role"] == "action_drafter"
+
+
+def test_agentlog_merge_failing_audit_stamps_false():
+    from vayu.agents.audit import CityAudit
+    from vayu.commands.briefs import _assemble_agentlog
+
+    audits = [CityAudit("delhi", 1, 11, failures=["evidence_refs[0]: bad"])]
+    log = _assemble_agentlog(
+        {}, {"delhi"}, [_run_row("delhi")], audits, False, "2025-11-08T06:00:00Z"
+    )
+    assert log["audit"]["passed"] is False
