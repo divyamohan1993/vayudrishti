@@ -323,6 +323,8 @@ DRAFTER_SYSTEM = (
     "an owner agency, target wards, a trigger_window in UTC, advisory languages (en + hi for "
     "Delhi), and evidence_refs copied verbatim from the situations/strategies. Include "
     "expected_effect ONLY when a strategy gave a numeric basis_ref; otherwise set it null. "
+    "Set action_code to the digest candidate's enforcement.action for the target ward when "
+    "present (it is already a valid taxonomy key); otherwise leave it null. "
     f"At most {MAX_BRIEFS} briefs. brief_type is 'action' unless told otherwise.\n"
     "DISCIPLINE (an adversarial verifier will reject overreach): headline and situation restate "
     "ONLY what a citable ref or the active GRAP-stage ref establishes. FORBIDDEN: any statement "

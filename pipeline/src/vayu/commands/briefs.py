@@ -43,6 +43,12 @@ def register(subparsers: argparse._SubParsersAction) -> None:
         "--data-dir", default=None, help="Override web/public/data root (default from settings)."
     )
     p.add_argument("--max-calls", type=int, default=None, help="Hard NIM call ceiling per city.")
+    p.add_argument(
+        "--audit",
+        action="store_true",
+        help="Do not generate: re-resolve every ref in the PUBLISHED briefs.json against the "
+        "published artifacts (acceptance 18). Exit 1 if any published ref fails.",
+    )
     p.set_defaults(func=run)
 
 
@@ -126,11 +132,53 @@ def _resolve_cities(arg: str) -> list[str]:
     return list(CITIES) if arg == "all" else [arg]
 
 
+def _run_audit(data_root: Path, cities: list[str]) -> int:
+    """Re-resolve every ref in each published briefs.json; print a report, exit 1 on any fail."""
+    from vayu.agents.audit import audit_city
+
+    results = [audit_city(data_root, c) for c in cities]
+    for r in results:
+        if r.ok:
+            log.info(
+                "audit_ok",
+                city=r.city,
+                briefs=r.briefs_audited,
+                refs=r.refs_checked,
+                skipped_stale=r.skipped_stale,
+            )
+        else:
+            log.error("audit_failed", city=r.city, failures=r.failures)
+    summary = {
+        "audit": "resolver-receipts",
+        "audited_at": utc_iso_z(now_utc()),
+        "passed": all(r.ok for r in results),
+        "total_briefs": sum(r.briefs_audited for r in results),
+        "total_refs_checked": sum(r.refs_checked for r in results),
+        "cities": [
+            {
+                "city": r.city,
+                "briefs_audited": r.briefs_audited,
+                "refs_checked": r.refs_checked,
+                "passed": r.ok,
+                "skipped_stale": r.skipped_stale,
+                **({"failures": r.failures} if r.failures else {}),
+            }
+            for r in results
+        ],
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if summary["passed"] else 1
+
+
 def run(args: argparse.Namespace) -> int:
     from vayu.agents.orchestrator import MAX_CALLS, generate_briefs
 
     settings = get_settings()
     data_root = Path(args.data_dir) if args.data_dir else settings.resolved_web_data_dir
+
+    if getattr(args, "audit", False):
+        return _run_audit(data_root, _resolve_cities(args.city))
+
     max_calls = args.max_calls or MAX_CALLS
     key = settings.nvidia_api_key
 
