@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import json
 import os
-from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
@@ -128,6 +127,7 @@ def add_landuse(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFr
     `vayu ingest --sources osm`, so `features` stays fast. Uncached stations get NaN.
     """
     cache = get_settings().raw_dir / cfg.slug / "osm_landuse.parquet"
+    df = df.drop(columns=[c for c in LANDUSE_COLS if c in df.columns], errors="ignore")
     if cache.exists():
         lu = pd.read_parquet(cache)
         lu["station_id"] = lu["station_id"].astype(str)
@@ -137,7 +137,7 @@ def add_landuse(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFr
             resource_id="highway+building+landuse=industrial",
             rows=len(lu),
         )
-        df = df.merge(lu, on="station_id", how="left")
+        df = df.merge(lu[["station_id", *LANDUSE_COLS]], on="station_id", how="left")
     for c in LANDUSE_COLS:
         if c not in df.columns:
             df[c] = np.nan
@@ -270,11 +270,8 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
     validate(df)
 
     out = settings.feature_store_dir / slug / "hourly.parquet"
-    out.parent.mkdir(parents=True, exist_ok=True)
     # Atomic write: a consumer (models training) never reads a half-written parquet.
-    tmp = out.with_name("hourly.parquet.tmp")
-    df.to_parquet(tmp, index=False)
-    os.replace(tmp, out)
+    _atomic_write_parquet(df, out)
     lin.write(settings.feature_store_dir / slug / "lineage.json")
 
     log.info(
@@ -296,5 +293,36 @@ def build_features(city: str) -> int:
     return 0
 
 
-def _iso(dt: datetime) -> str:
-    return dt.strftime("%Y-%m-%d")
+def _atomic_write_parquet(df: pd.DataFrame, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    df.to_parquet(tmp, index=False)
+    os.replace(tmp, path)
+
+
+def enrich_satellite(slug: str) -> Path:
+    """Merge cached GEE satellite into an existing parquet in place (no full rebuild)."""
+    cfg = load_city(slug)
+    path = get_settings().feature_store_dir / slug / "hourly.parquet"
+    df = pd.read_parquet(path)
+    df = add_satellite(df, cfg, LineageLog())
+    df = finalize(df)
+    validate(df)
+    _atomic_write_parquet(df, path)
+    n = int(df["s5p_no2"].notna().sum())
+    log.info("features.enrich_satellite", city=slug, rows=len(df), s5p_no2_nonnull=n)
+    return path
+
+
+def enrich_landuse(slug: str) -> Path:
+    """Merge cached OSM land-use into an existing parquet in place (no full rebuild)."""
+    cfg = load_city(slug)
+    path = get_settings().feature_store_dir / slug / "hourly.parquet"
+    df = pd.read_parquet(path)
+    df = add_landuse(df, cfg, LineageLog())
+    df = finalize(df)
+    validate(df)
+    _atomic_write_parquet(df, path)
+    n = int(df["road_density"].notna().sum())
+    log.info("features.enrich_landuse", city=slug, rows=len(df), road_density_nonnull=n)
+    return path
