@@ -1,0 +1,7 @@
+# Humanizer allowlist: terms that read as AI-tells generally but are legitimate
+# technical vocabulary in this project. One term per line, case-insensitive.
+# Keep this list SHORT; every entry weakens the gate for that word repo-wide.
+
+# "robust" is a statistics term here: robust estimators, NaN-robust features,
+# robustness checks. The pipeline and receipts use it in that precise sense.
+robust
