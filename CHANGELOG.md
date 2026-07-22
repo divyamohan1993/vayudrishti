@@ -7,6 +7,19 @@ All notable changes to VayuDrishti are recorded here. Format follows
 
 ### Added
 
+- 2026-07-23 Scientific Depth Pack alignment (spec v5, vayu-ops):
+  - `.env.example`: optional expansion slots `GEMS_API_CREDENTIALS` (NIER),
+    `MOSDAC_CREDENTIALS` (INSAT), and `AIRNOW_API_KEY` (embassy-validation
+    fallback), each documented as optional so absence never blocks the pipeline.
+  - `refresh.yml`: the publish step logs wall-clock time and warns past the
+    15-minute budget.
+  - `README.md` and `docs/demo-video-script.md`: the ensemble-of-methods estimate,
+    validation against an independent network never trained on, the GRAP trigger
+    watchdog, and the 15-platform satellite tier, all with placeholder numbers.
+  - Secret scan and `.gitleaks.toml` now allowlist test directories, since the
+    security unit tests embed fake token shapes on purpose. Published data and the
+    built bundle stay fully scanned.
+
 - 2026-07-22 Operations foundation (vayu-ops):
   - `refresh.yml`: scheduled data refresh every six hours plus manual dispatch.
     Job-level demo-freeze skip via the `DEMO_FREEZE` repository variable. GEE

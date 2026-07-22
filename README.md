@@ -73,6 +73,23 @@ check. Open `/receipts` and every model claim carries its validation number:
 - Training window: February 2025 to now, one winter. We say so, and scope every claim to it.
 <!-- metrics filled at integration from receipts.json / interventions.json -->
 
+## Science you can check
+
+We do not hand you one number and hope. Every cell is estimated by four
+independent methods: inverse-distance, kriging, a satellite AOD-to-PM model, and
+gradient boosting. They are combined by a stacked model, with a disagreement index
+that shows where the methods argue. Where they agree, trust it; where they
+diverge, we say so.
+
+- Validated against a network we never trained on: US embassy PM2.5 monitors, held out entirely. Error and bias per city on `/receipts`: **TBD**.
+- Calibrated, and honest when it is not: the p50 to p90 band is checked against how often it actually covers, with a reliability diagram.
+- A GRAP trigger watchdog: the probability of crossing each emergency stage in the next 48 hours, joined to the ledger's measured effect for that stage and a pre-positioning window. Forecast, trigger, effect, action, in one line.
+- Fifteen satellite platforms feed the models, from Sentinel-5P to MODIS to VIIRS, with hourly geostationary coverage where keys allow.
+<!-- numbers filled at integration from receipts.json -->
+
+Full method equations, assumptions, and citations live on `/methods`, and the
+hourly ensemble grid is downloadable for researchers to reuse.
+
 ## Three cities, one YAML away from more
 
 - **Delhi**: the deep build. Every surface, the Ledger, full receipts, offline replay.

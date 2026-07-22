@@ -37,10 +37,12 @@ back to the measured signal behind it."
 GRAP effect table with a placebo pass or fail per stage.
 
 **Voice**: "Nothing here is a vibe. The 24 hour forecast beats persistence by [X]
-percent on a rolling-origin backtest, with the embargo stated. Each GRAP stage
-carries a placebo test, so a lucky week cannot pose as a policy win. Where the
-signal is weak, we say so. One winter of training data, and we scope every claim
-to it."
+percent on a rolling-origin backtest, with the embargo stated. Every estimate is
+four independent methods combined, and we publish where they disagree. And we
+validate against a network we never trained on: the US embassy monitors, held out
+completely. Each GRAP stage carries a placebo test, so a lucky week cannot pose as
+a policy win, and the watchdog flags the probability the next stage crosses in 48
+hours, next to what that stage was measured to save."
 
 **On action**: hover a number to show its method note and source.
 
@@ -91,7 +93,8 @@ data, with a receipt behind every number. Try it at [live URL]."
 
 - Ledger page with real Delhi GRAP 2025-26 data (or labeled fixture until integration).
 - An agent-generated action brief for a priority ward, each line showing its citation.
-- `/receipts` with the forecast and GRAP effect tables populated.
+- `/receipts` with the forecast and GRAP effect tables, the embassy-network validation panel, the ensemble method table, and the reliability diagram populated.
+- The GRAP trigger watchdog panel showing a stage-crossing probability next to its ledger effect.
 - November 2025 replay cached for offline playback.
 - `config/cities/bengaluru.yaml` open in an editor with syntax highlighting.
 - A clean browser profile for the geolocation grant, and the dev tools network tab visible.
