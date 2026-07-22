@@ -17,6 +17,7 @@ import { SampleDataBanner } from "@/components/ui/SampleDataBanner";
 import { StatusNote } from "@/components/ui/StatusNote";
 import { LoadingBlock, Skeleton } from "@/components/ui/Skeleton";
 import { PanelBoundary } from "@/components/ui/PanelBoundary";
+import { WardMap } from "@/components/map/WardMap";
 
 const TIER_META: Record<string, { label: string; tone: "accent" | "neutral" | "outline"; note: string }> = {
   deep: { label: "Deep coverage", tone: "accent", note: "All surfaces, full validation, replay" },
@@ -48,6 +49,7 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
 
   const nowcastUrl = city ? dataUrl(city.files.nowcast) : null;
   const nowcastState = useResource(nowcastUrl, nowcastSchema);
+  const wardsUrl = city ? dataUrl(city.files.wards) : null;
 
   const cityName = city?.name ?? cityId.charAt(0).toUpperCase() + cityId.slice(1);
   const tier = city ? TIER_META[city.tier] : undefined;
@@ -110,19 +112,16 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
       {/* Primary grid: map area + panel column */}
       <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr] xl:grid-cols-[2fr_1fr]">
         <div className="flex min-w-0 flex-col gap-4">
-          <Panel
-            aria-label={`${cityName} ward map`}
-            className="min-h-[420px] lg:min-h-[560px]"
-            padded={false}
-            bodyClassName="relative grid place-items-center"
-          >
-            <div className="p-8 text-center">
-              <p className="eyebrow">Ward map</p>
-              <p className="mt-2 max-w-sm text-sm text-ink-mute">
-                MapLibre ward choropleth mounts here (client-only, WebGL2 with an SVG fallback).
-              </p>
-            </div>
-          </Panel>
+          <PanelBoundary label="Ward map">
+            <Panel eyebrow="Ward map" title={`${cityName} air quality`} aria-label={`${cityName} ward map`}>
+              <WardMap
+                cityName={cityName}
+                wardsUrl={wardsUrl}
+                wards={nowcastState.status === "ready" ? nowcastState.data.wards : undefined}
+                wardsLoading={nowcastState.status === "loading"}
+              />
+            </Panel>
+          </PanelBoundary>
         </div>
 
         <div className="flex min-w-0 flex-col gap-4">
