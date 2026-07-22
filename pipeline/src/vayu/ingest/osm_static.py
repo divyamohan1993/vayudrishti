@@ -106,7 +106,7 @@ def fetch_industrial(bbox: tuple[float, float, float, float], utm_epsg: int) -> 
     return gpd.GeoSeries(polys, crs="EPSG:4326").to_crs(utm_epsg)
 
 
-MAJOR_ROAD_CLASSES = "motorway|trunk|primary|secondary"
+MAJOR_ROAD_CLASSES = "motorway|trunk|primary"
 ROAD_SIMPLIFY_DEG = 0.0002  # ~22 m; thin orientation lines only
 ROAD_COORD_DECIMALS = 5
 
