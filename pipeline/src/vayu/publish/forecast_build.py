@@ -11,6 +11,8 @@ gate-valid, fixture flag dropped.
 from __future__ import annotations
 
 import json
+import time
+import urllib.error
 import urllib.request
 
 import numpy as np
@@ -64,8 +66,17 @@ def _openmeteo(lat: float, lon: float) -> pd.DataFrame:
     url = (f"https://api.open-meteo.com/v1/forecast?latitude={lat}&longitude={lon}"
            "&hourly=wind_speed_10m,boundary_layer_height,relative_humidity_2m,precipitation,temperature_2m"
            "&wind_speed_unit=ms&past_days=7&forecast_days=2&timezone=UTC")
-    with urllib.request.urlopen(url, timeout=30) as r:
-        d = json.load(r)["hourly"]
+    last: Exception | None = None
+    for attempt in range(5):  # backoff on Open-Meteo rate limits / transient 503s
+        try:
+            with urllib.request.urlopen(url, timeout=30) as r:
+                d = json.load(r)["hourly"]
+            break
+        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+            last = exc
+            time.sleep(2 ** attempt)
+    else:
+        raise last  # exhausted retries
     return pd.DataFrame({
         "ts_utc": pd.to_datetime(d["time"], utc=True),
         "wind_speed_10m": d["wind_speed_10m"], "blh_m": d["boundary_layer_height"],
@@ -92,18 +103,27 @@ def _row(h_off: dict, origin, horizon: int, meteo: pd.DataFrame, frp: float) -> 
     }
 
 
-def build(city: str = "delhi") -> ForecastDoc:
+def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, origin=None,
+          archive_meteo: bool = False, models=None) -> ForecastDoc:
+    """Real ward forecast from ``origin`` (default: latest). ``train_df`` overrides the
+    training set for out-of-fold replay; ``archive_meteo`` takes target-hour meteo from the
+    parquet (historical replay targets) instead of the Open-Meteo forecast endpoint;
+    ``models`` reuses pre-trained per-horizon models (replay trains once, predicts many dates)."""
     df = load_feature_store(city)
-    origin = df["ts_utc"].max()
+    origin = origin if origin is not None else df["ts_utc"].max()
     gen = utc_iso_z(now_utc())
     cfg = load_city(city)
     log.info("forecast_pub.start", city=city, origin=str(origin))
 
-    wh = build_ward_hourly(df)
-    models = {h: train_forecast(wh, h) for h in HORIZONS}
+    if models is None:
+        wh = build_ward_hourly(train_df if train_df is not None else df)
+        models = {h: train_forecast(wh, h) for h in HORIZONS}
     centroids = _ward_centroids(city)
     hist = _recent_history(df, origin, centroids)
-    meteo = _openmeteo(cfg.centroid[0], cfg.centroid[1])
+    if archive_meteo:
+        meteo = df.groupby("ts_utc")[["wind_speed_10m", "blh_m", "rh_2m", "precip_mm", "temp_2m"]].mean()
+    else:
+        meteo = _openmeteo(cfg.centroid[0], cfg.centroid[1])
     cur = df[df["ts_utc"] == origin]
     frp = float(cur["frp_upwind"].mean()) if cur["frp_upwind"].notna().any() else 0.0
 

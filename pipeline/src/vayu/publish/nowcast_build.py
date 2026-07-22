@@ -78,14 +78,19 @@ def _confidence(dist_km: float) -> str:
     return "high" if dist_km <= CONF_HIGH_KM else "med"
 
 
-def build(city: str = "delhi") -> NowcastDoc:
+def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, ts=None,
+          model: NowcastModel | None = None) -> NowcastDoc:
+    """Real nowcast for ``city`` at ``ts`` (default: latest). ``train_df`` overrides the
+    training set for out-of-fold replay (e.g. exclude the replay window); IDW inference
+    inputs still use the full store at ``ts``. ``model`` reuses a pre-trained model (replay
+    trains once, predicts many dates)."""
     df = load_feature_store(city)
-    ts = df["ts_utc"].max()
+    ts = ts if ts is not None else df["ts_utc"].max()
     cfg = load_city(city)
     gen = utc_iso_z(now_utc())
     log.info("nowcast_pub.start", city=city, ts=str(ts), rows=len(df))
 
-    model = _train(df)
+    model = model if model is not None else _train(train_df if train_df is not None else df)
     gf = build_grid_features(city, ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts)
     gf = _cell_features(gf, df, ts)
     p50, p90 = model.predict(gf)
