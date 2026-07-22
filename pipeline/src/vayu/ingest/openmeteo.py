@@ -8,6 +8,7 @@ few days' lag, so the last ~2 days are refetched).
 
 from __future__ import annotations
 
+import time
 from pathlib import Path
 
 import pandas as pd
@@ -79,6 +80,76 @@ def fetch_forecast(
     resp = requests.get(FORECAST_URL, params=params, timeout=60, headers={"User-Agent": "vayu"})
     resp.raise_for_status()
     return _parse_hourly(resp.json())
+
+
+def _parse_multi(payload) -> list[pd.DataFrame]:
+    payloads = payload if isinstance(payload, list) else [payload]
+    return [_parse_hourly(p) for p in payloads]
+
+
+def _fetch_multi(url: str, lats: list[float], lons: list[float], extra: dict) -> list[pd.DataFrame]:
+    """Open-Meteo accepts comma-separated coordinates and returns one result per
+    point. URLs are length-limited, so callers must chunk (~100 points). Retries on
+    429 (rate limit) with backoff."""
+    params = {
+        "latitude": ",".join(f"{v:.4f}" for v in lats),
+        "longitude": ",".join(f"{v:.4f}" for v in lons),
+        "hourly": ",".join(HOURLY_VARS),
+        "wind_speed_unit": "ms",
+        "timezone": "UTC",
+        **extra,
+    }
+    delay = 10.0
+    for attempt in range(5):
+        resp = requests.get(url, params=params, timeout=120, headers={"User-Agent": "vayu"})
+        if resp.status_code == 429:
+            log.warning("openmeteo.rate_limited", attempt=attempt, wait_s=delay)
+            time.sleep(delay)
+            delay *= 1.7
+            continue
+        resp.raise_for_status()
+        return _parse_multi(resp.json())
+    resp.raise_for_status()
+    return _parse_multi(resp.json())
+
+
+def fetch_forecast_multi(
+    lats: list[float],
+    lons: list[float],
+    *,
+    forecast_days: int = 2,
+    past_days: int = 7,
+    chunk: int = 100,
+) -> list[pd.DataFrame]:
+    """Per-point forecast+recent-past hourly meteo (for grid nowcast). One frame per point."""
+    out: list[pd.DataFrame] = []
+    for i in range(0, len(lats), chunk):
+        out.extend(
+            _fetch_multi(
+                FORECAST_URL,
+                lats[i : i + chunk],
+                lons[i : i + chunk],
+                {"forecast_days": forecast_days, "past_days": past_days},
+            )
+        )
+    return out
+
+
+def fetch_archive_multi(
+    lats: list[float], lons: list[float], start_date: str, end_date: str, *, chunk: int = 100
+) -> list[pd.DataFrame]:
+    """Per-point ERA5 archive hourly meteo (for grid replay). One frame per point."""
+    out: list[pd.DataFrame] = []
+    for i in range(0, len(lats), chunk):
+        out.extend(
+            _fetch_multi(
+                ARCHIVE_URL,
+                lats[i : i + chunk],
+                lons[i : i + chunk],
+                {"start_date": start_date, "end_date": end_date},
+            )
+        )
+    return out
 
 
 def fetch_archive_cached(
