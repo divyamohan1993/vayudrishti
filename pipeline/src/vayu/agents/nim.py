@@ -89,7 +89,10 @@ def build_client(api_key: str):
     """
     from openai import OpenAI
 
-    return OpenAI(api_key=api_key, base_url=NIM_BASE_URL, max_retries=2, timeout=120.0)
+    # Reasoning-mode calls legitimately take 60-90s; a generous per-attempt timeout plus
+    # client-side retries rides out the hosted endpoint's intermittent slowness. A call that
+    # still fails surfaces as NimError and the briefs stage keeps the previous briefs (stale).
+    return OpenAI(api_key=api_key, base_url=NIM_BASE_URL, max_retries=3, timeout=180.0)
 
 
 def _extract_usage(response: Any) -> Usage:

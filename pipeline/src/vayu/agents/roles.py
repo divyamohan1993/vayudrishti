@@ -381,11 +381,13 @@ def drafter_user(
 
 def repair_user(errors_by_id: dict[str, list[str]]) -> str:
     return (
-        "Some briefs were REJECTED by the deterministic gate. Fix ONLY these and resubmit ALL "
-        "briefs you still stand behind via submit_briefs. Drop any you cannot ground. Failures:\n"
-        f"{_json(errors_by_id)}\n"
-        "Remember: evidence_refs must be copied verbatim from the tools/digest; a path that does "
-        "not resolve, or a value that does not match the artifact, is rejected again."
+        "The deterministic gate found evidence problems. Some refs did not resolve or their value "
+        "did not match the artifact and were DROPPED; other briefs failed outright. Fix these and "
+        "resubmit ALL briefs you still stand behind via submit_briefs. For each dropped ref, "
+        "either replace it with the correct ref copied VERBATIM from a citable_refs list, or "
+        "remove the statement it was meant to support so no claim is left uncited. Drop any brief "
+        f"you cannot ground. Problems:\n{_json(errors_by_id)}\n"
+        "A path that does not resolve, or a value that mismatches the artifact, is dropped again."
     )
 
 

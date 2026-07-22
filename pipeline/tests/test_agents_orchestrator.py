@@ -53,6 +53,38 @@ def _drafter_brief(good_brief: dict[str, Any]) -> dict[str, Any]:
     return b
 
 
+def _partial_brief(good_brief: dict[str, Any]) -> dict[str, Any]:
+    """A drafter brief with good refs PLUS one unresolvable ref (prunes but survives)."""
+    b = _drafter_brief(good_brief)
+    b["evidence_refs"] = b["evidence_refs"] + [
+        {
+            "label": "ghost",
+            "artifact": "forecast",
+            "path": "forecast.wards[ward_id=ghost].series[h=24].pm25_p90",
+            "value": 1.0,
+        }
+    ]
+    return b
+
+
+def _sit() -> ChatResult:
+    return _tool_result(
+        "submit_situations",
+        {
+            "situations": [
+                {"id": "s1", "target_wards": ["delhi_042"], "summary": "x", "signal_refs": []}
+            ]
+        },
+    )
+
+
+def _strat() -> ChatResult:
+    return _tool_result(
+        "submit_strategies",
+        {"strategies": [{"situation_id": "s1", "measure": "m", "owner": "MCD", "effect_refs": []}]},
+    )
+
+
 # ---------------------------------------------------------------- repair loop
 
 
@@ -111,6 +143,50 @@ def test_repair_loop_drops_bad_brief_keeps_good(artifacts, good_brief):
     assert briefs_doc.briefs[0].evidence_refs[0].value == 412.0  # ground-truthed
     assert log_doc.totals.calls == 5
     assert any(r.repairs == 1 for r in log_doc.runs)  # a repair round occurred
+
+
+def test_pruned_ref_triggers_repair_then_clean(artifacts, good_brief):
+    # A brief with a pruned (unresolvable) ref must NOT be accepted silently; it triggers a
+    # repair, and the model's clean resubmission is what gets published.
+    partial = _partial_brief(good_brief)
+    good = _drafter_brief(good_brief)
+    results = [
+        _sit(),
+        _strat(),
+        _tool_result("submit_briefs", {"briefs": [partial]}),  # round 0: 1 ref prunes -> repair
+        _tool_result("submit_briefs", {"briefs": [good]}),  # repair: fully clean
+        _tool_result(
+            "submit_verdicts",
+            {"verdicts": [{"brief_id": good["id"], "passed": True, "notes": "ok"}]},
+        ),
+    ]
+    briefs_doc, log_doc = orchestrator.generate_briefs(artifacts, "delhi", _scripted(*results))
+    assert [b.id for b in briefs_doc.briefs] == [good["id"]]
+    assert len(briefs_doc.briefs[0].evidence_refs) == 3  # the clean 3-ref version
+    assert log_doc.totals.calls == 5
+    assert any(r.repairs == 1 for r in log_doc.runs)  # a repair round happened
+
+
+def test_pruned_ref_accepted_after_repairs_exhausted(artifacts, good_brief):
+    # If the model never fixes the bad ref, the surviving-refs version publishes after the repair
+    # budget is spent (the dropped ref is gone, so no unverified claim ships).
+    partial = _partial_brief(good_brief)
+    results = [
+        _sit(),
+        _strat(),
+        _tool_result("submit_briefs", {"briefs": [partial]}),  # round 0
+        _tool_result("submit_briefs", {"briefs": [partial]}),  # repair 1
+        _tool_result("submit_briefs", {"briefs": [partial]}),  # repair 2 (budget spent) -> accept
+        _tool_result(
+            "submit_verdicts",
+            {"verdicts": [{"brief_id": partial["id"], "passed": True, "notes": "ok"}]},
+        ),
+    ]
+    briefs_doc, log_doc = orchestrator.generate_briefs(artifacts, "delhi", _scripted(*results))
+    assert [b.id for b in briefs_doc.briefs] == [partial["id"]]
+    assert len(briefs_doc.briefs[0].evidence_refs) == 3  # the unresolvable ref was pruned
+    assert log_doc.totals.calls == 6  # analyst + strategist + drafter x3 + verifier
+    assert max(r.repairs for r in log_doc.runs) == 2
 
 
 def test_verifier_can_reject_resolver_passing_brief(artifacts, good_brief):

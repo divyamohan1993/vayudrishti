@@ -175,12 +175,21 @@ def _normalize(raw: dict[str, Any]) -> dict[str, Any]:
 
 def _validate_and_ground(
     artifacts: dict[str, Any], raw_briefs: list[dict[str, Any]]
-) -> tuple[list[dict[str, Any]], dict[str, list[str]]]:
-    """Resolve + ground-truth + schema-validate each brief. Returns (kept, errors_by_id)."""
-    kept: list[dict[str, Any]] = []
+) -> tuple[list[dict[str, Any]], dict[str, tuple[dict[str, Any], list[str]]], dict[str, list[str]]]:
+    """Resolve + ground-truth + schema-validate each brief.
+
+    Returns (clean, pruned_ok, errors):
+    - clean: briefs that resolved with ZERO pruned refs and are schema-valid.
+    - pruned_ok: {id: (brief, prune_reasons)} that resolved and validate but had a ref DROPPED
+      (a caught hallucination). These are sent back for repair first, and accepted lenient only
+      after the repair budget is spent.
+    - errors: {id: reasons} that fully failed (no resolvable refs, bad basis, or schema).
+    """
+    clean: list[dict[str, Any]] = []
+    pruned_ok: dict[str, tuple[dict[str, Any], list[str]]] = {}
     errors: dict[str, list[str]] = {}
-    for raw in raw_briefs:
-        bid = str(raw.get("id", f"anon-{len(kept) + len(errors)}"))
+    for i, raw in enumerate(raw_briefs):
+        bid = str(raw.get("id", f"anon-{i}"))
         nb = _normalize(raw)
         res = resolver.verify_brief(artifacts, nb)
         if not res.ok:
@@ -191,8 +200,11 @@ def _validate_and_ground(
         except Exception as exc:  # noqa: BLE001 - pydantic ValidationError -> repair signal
             errors[bid] = [f"schema: {type(exc).__name__}"]
             continue
-        kept.append(res.brief)
-    return kept, errors
+        if res.pruned:
+            pruned_ok[bid] = (res.brief, res.pruned)
+        else:
+            clean.append(res.brief)
+    return clean, pruned_ok, errors
 
 
 def generate_briefs(
@@ -248,6 +260,7 @@ def generate_briefs(
             {"role": "system", "content": roles.DRAFTER_SYSTEM},
             {"role": "user", "content": roles.drafter_user(situations, strategies, city)},
         ]
+        have: set[str] = set()
         for attempt in range(MAX_REPAIRS + 1):
             result = runner.call(
                 roles.DRAFTER,
@@ -259,16 +272,30 @@ def generate_briefs(
             )
             call = next((c for c in result.tool_calls if c["name"] == submit_name), None)
             raw_briefs = _parse_args(call["arguments"]).get("briefs", []) if call else []
-            round_kept, errors = _validate_and_ground(artifacts, raw_briefs)
-            # Accumulate newly-passing briefs (dedupe by id).
-            have = {b["id"] for b in kept}
-            kept.extend(b for b in round_kept if b["id"] not in have)
-            if not errors or attempt == MAX_REPAIRS:
+            clean, pruned_ok, errors = _validate_and_ground(artifacts, raw_briefs)
+            # Fully-clean briefs are accepted immediately (dedupe by id).
+            for b in clean:
+                if b["id"] not in have:
+                    kept.append(b)
+                    have.add(b["id"])
+            # A pruned ref is a caught hallucination: ask the model to fix it (or drop the
+            # claim) before we accept a brief missing evidence. Errors are repair signals too.
+            signals: dict[str, list[str]] = dict(errors)
+            for bid, (_b, reasons) in pruned_ok.items():
+                if bid not in have:
+                    signals[bid] = reasons
+            if not signals or attempt == MAX_REPAIRS:
+                # Repair budget spent (or nothing to repair): accept the surviving-refs versions.
+                for bid, (b, reasons) in pruned_ok.items():
+                    if bid not in have:
+                        kept.append(b)
+                        have.add(bid)
+                        log.info("brief_accepted_pruned", city=city, brief_id=bid, pruned=reasons)
                 if errors:
                     log.warning("briefs_dropped", city=city, dropped=list(errors), reasons=errors)
                 break
             messages.append(_assistant_echo(result))
-            messages.append({"role": "user", "content": roles.repair_user(errors)})
+            messages.append({"role": "user", "content": roles.repair_user(signals)})
 
     kept = kept[: roles.MAX_BRIEFS]
 
