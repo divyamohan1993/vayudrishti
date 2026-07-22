@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-22T20:08:35Z",
+  "generated_at": "2026-07-22T20:38:07Z",
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
   "runs": [
     {
@@ -7,9 +7,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 4132,
-      "tokens_out": 1154,
-      "duration_ms": 22500,
+      "tokens_in": 14603,
+      "tokens_out": 4369,
+      "duration_ms": 114125,
       "repairs": 0
     },
     {
@@ -17,9 +17,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 2166,
-      "tokens_out": 121,
-      "duration_ms": 2625,
+      "tokens_in": 3509,
+      "tokens_out": 59,
+      "duration_ms": 2250,
       "repairs": 0
     },
     {
@@ -27,9 +27,19 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 2733,
-      "tokens_out": 1571,
-      "duration_ms": 31062,
+      "tokens_in": 4589,
+      "tokens_out": 108,
+      "duration_ms": 15514,
+      "repairs": 0
+    },
+    {
+      "role": "causal_strategist",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 8192,
+      "tokens_in": 4223,
+      "tokens_out": 192,
+      "duration_ms": 8438,
       "repairs": 0
     },
     {
@@ -37,9 +47,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 4096,
-      "tokens_in": 2200,
-      "tokens_out": 3030,
-      "duration_ms": 75187,
+      "tokens_in": 3452,
+      "tokens_out": 6343,
+      "duration_ms": 93500,
       "repairs": 0
     },
     {
@@ -47,17 +57,17 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 4096,
-      "tokens_in": 1284,
-      "tokens_out": 717,
-      "duration_ms": 14187,
+      "tokens_in": 2669,
+      "tokens_out": 1674,
+      "duration_ms": 36718,
       "repairs": 0
     }
   ],
   "totals": {
-    "tokens_in": 12515,
-    "tokens_out": 6593,
-    "total": 19108,
-    "calls": 5
+    "tokens_in": 33045,
+    "tokens_out": 12745,
+    "total": 45790,
+    "calls": 6
   },
   "fixture": true
 }
