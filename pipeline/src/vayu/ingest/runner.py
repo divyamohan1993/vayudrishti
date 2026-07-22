@@ -37,7 +37,10 @@ def run_ingest(city: str, sources: str = "all", start: str | None = None) -> int
 
 
 def _ingest_city(slug: str, src: set[str], start: str | None) -> None:
+    import pandas as pd
+
     from vayu.features.build import active_station_ids  # avoid import cycle
+    from vayu.ingest.openaq_discover import load_seed
 
     cfg = load_city(slug)
     settings = get_settings()
@@ -62,6 +65,18 @@ def _ingest_city(slug: str, src: set[str], start: str | None) -> None:
         )
         if not base.empty:
             stations = base.groupby("station_id")[["lat", "lon"]].first().reset_index()
+
+    # OSM/GEE can run without a same-run OpenAQ backfill: derive station coords
+    # from the committed discovery seed.
+    if stations is None and ({"osm", "gee"} & src):
+        active = set(active_station_ids(slug))
+        rows = [
+            {"station_id": str(s["location_id"]), "lat": s["lat"], "lon": s["lon"]}
+            for s in load_seed(slug)
+            if s["location_id"] in active
+        ]
+        if rows:
+            stations = pd.DataFrame(rows)
 
     if stations is not None and "openmeteo" in src:
         end = openmeteo.default_end_date()
