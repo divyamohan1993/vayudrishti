@@ -12,9 +12,10 @@ import {
   advisories as advisoriesSchema,
   briefs as briefsSchema,
   replayIndex as replayIndexSchema,
+  agentLog as agentLogSchema,
 } from "@/lib/schemas";
 import type { ManifestCity, NowcastWard } from "@/lib/schemas";
-import { DATA_BASE, MANIFEST_URL, cityConventionUrl, dataUrl } from "@/lib/paths";
+import { AGENTLOG_URL, DATA_BASE, MANIFEST_URL, cityConventionUrl, dataUrl } from "@/lib/paths";
 import { AQI_ORDER, AQI_STYLES } from "@/lib/aqi";
 import { LANGUAGE_NAMES } from "@/lib/i18n";
 import { formatISTDate } from "@/lib/format";
@@ -91,6 +92,16 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
       ? cityConventionUrl(cityId, "briefs.json")
       : null;
   const briefsState = useResource(briefsUrl, briefsSchema);
+  // agentlog carries the independent audit block; only fetched where briefs exist.
+  const agentlogState = useResource(
+    briefsUrl && manifestState.status === "ready"
+      ? manifestState.data.agentlog
+        ? dataUrl(manifestState.data.agentlog)
+        : AGENTLOG_URL
+      : null,
+    agentLogSchema,
+  );
+  const briefsAudit = agentlogState.status === "ready" ? agentlogState.data.audit : undefined;
 
   const resetForCity = useUIStore((s) => s.resetForCity);
   useEffect(() => {
@@ -286,6 +297,18 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
                 aria-label="Action briefs"
                 actions={briefsState.data.model ? <span className="eyebrow">{briefsState.data.model}</span> : undefined}
               >
+                {briefsAudit?.passed && briefsState.data.briefs.length > 0 && (
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Badge tone="good" title="Every evidence ref re-resolved against the published artifacts.">
+                      independently audited
+                    </Badge>
+                    {briefsAudit.refs_checked != null && (
+                      <span className="text-xs text-ink-mute">
+                        {briefsAudit.refs_checked} evidence refs re-resolved
+                      </span>
+                    )}
+                  </div>
+                )}
                 <ActionBriefs briefs={briefsState.data.briefs} stale={briefsState.data.stale} nameById={nameById} />
               </Panel>
             </PanelBoundary>

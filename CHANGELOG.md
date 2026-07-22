@@ -112,6 +112,10 @@ All notable changes to VayuDrishti are recorded here. Format follows
     the real GIBS EPSG:3857 identifier is `OMI_Nitrogen_Dioxide_Tropo_Column`. Also
     gave OMI NO2 a 3-day lag (its processing trails MODIS AOD) so the freshest day no
     longer 404s. AOD and VIIRS overlays were already correct; the overlay now returns 200.
+  - `web/components/city/CityCommandCenter.tsx`: the Action-briefs panel now renders a
+    compact "independently audited" stamp with the re-resolved evidence-ref count,
+    read from the agentlog audit block (fetched only where briefs exist). The full
+    audit block stays on `/about-data`.
   - Verified on the production static export: sample-data banners cleared on every
     surface, the Delhi ward choropleth and the roads layer render (290 wards, 3571
     road lines), replay shows the real Nov-2025 out-of-fold dates behind the
