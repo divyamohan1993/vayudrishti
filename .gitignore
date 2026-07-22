@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+node_modules/
+__pycache__/
+.venv/
+data/feature-store/
+data/raw/
+*.parquet
+.next/
+.vercel/
+models/artifacts/
