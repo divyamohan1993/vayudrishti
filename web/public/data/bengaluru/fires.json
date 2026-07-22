@@ -1,0 +1,1 @@
+{"generated_at":"2026-07-22T21:58:24Z","trailing_hours":72,"source":"NASA FIRMS VIIRS S-NPP","clusters":[{"cluster_id":"bengaluru_fc0","centroid":[12.1337,77.0659],"frp_total":6.15,"fire_count":1,"distance_km":109.42,"bearing_deg":211.7},{"cluster_id":"bengaluru_fc1","centroid":[12.7462,77.6186],"frp_total":0.85,"fire_count":1,"distance_km":25.19,"bearing_deg":174.1}]}

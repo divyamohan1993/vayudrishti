@@ -10,6 +10,7 @@ Missing MAP_KEY degrades gracefully to an empty frame (frp_upwind then 0).
 from __future__ import annotations
 
 import io
+import json
 from datetime import date, datetime, timedelta
 from functools import lru_cache
 from pathlib import Path
@@ -17,10 +18,11 @@ from pathlib import Path
 import pandas as pd
 import requests
 
+from vayu import upwind
 from vayu.cityconfig import CityConfig
 from vayu.logging_setup import get_logger
 from vayu.settings import get_settings
-from vayu.timeutils import now_utc
+from vayu.timeutils import now_utc, utc_iso_z
 
 log = get_logger("ingest.firms")
 
@@ -133,3 +135,52 @@ def fetch_city_fires(cfg: CityConfig, start: str | None, cache_dir: Path) -> pd.
         last=str(fires["acq_utc"].max()) if len(fires) else None,
     )
     return fires
+
+
+CLUSTER_STEP_DEG = 0.05  # ~5 km fire clustering for the published summary
+
+
+def emit_fires_json(
+    cfg: CityConfig, out_path: Path, fires: pd.DataFrame | None = None, *, trailing_h: int = 72
+) -> int:
+    """Publish the OBSERVED upwind-fire clusters for a city (spec 15.2; vayu-agents).
+
+    Clusters recent FIRMS detections (trailing ``trailing_h`` from the latest fire)
+    into ~5km cells and reports centroid, total FRP, count, and distance/bearing from
+    the city centroid. This is the observed layer only; vayu-models adds the predictive
+    plume-alert layer (eta/probability/affected_wards). Returns the cluster count.
+    """
+    if fires is None:
+        fires = fetch_city_fires(cfg, None, get_settings().raw_dir / cfg.slug / "firms")
+    clusters: list[dict] = []
+    if len(fires):
+        latest = fires["acq_utc"].max()
+        recent = fires[fires["acq_utc"] > latest - pd.Timedelta(hours=trailing_h)].copy()
+        clat0, clon0 = cfg.centroid_latlon
+        recent["cl"] = (recent["lat"] / CLUSTER_STEP_DEG).round()
+        recent["cn"] = (recent["lon"] / CLUSTER_STEP_DEG).round()
+        for i, (_key, grp) in enumerate(recent.groupby(["cl", "cn"], sort=False)):
+            lat = float(grp["lat"].mean())
+            lon = float(grp["lon"].mean())
+            clusters.append(
+                {
+                    "cluster_id": f"{cfg.slug}_fc{i}",
+                    "centroid": [round(lat, 4), round(lon, 4)],
+                    "frp_total": round(float(grp["frp"].sum()), 2),
+                    "fire_count": int(len(grp)),
+                    "distance_km": round(upwind.haversine_km(clat0, clon0, lat, lon), 2),
+                    "bearing_deg": round(upwind.initial_bearing_deg(clat0, clon0, lat, lon), 1),
+                }
+            )
+        clusters.sort(key=lambda c: c["frp_total"], reverse=True)
+
+    payload = {
+        "generated_at": utc_iso_z(now_utc()),
+        "trailing_hours": trailing_h,
+        "source": "NASA FIRMS VIIRS S-NPP",
+        "clusters": clusters,
+    }
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    out_path.write_text(json.dumps(payload, separators=(",", ":")), encoding="utf-8")
+    log.info("firms.emit_fires_json", city=cfg.slug, clusters=len(clusters), out=str(out_path.name))
+    return len(clusters)
