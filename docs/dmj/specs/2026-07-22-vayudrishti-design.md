@@ -134,6 +134,9 @@ flowchart LR
 12. `CHANGELOG.md` current; prose passes humanizer gate.
 13. Cron validation gate blocks malformed publish (tested with poisoned fixture); demo-freeze toggle verified.
 14. Geolocation auto-detect: grant → nearest city opens; deny → picker works; coords provably never sent anywhere (network tab clean).
+15. Intervention Ledger (§13): Delhi GRAP 2025-26 winter stage transitions each have a weather-normalized effect estimate with bootstrap CI AND ≥1 passing placebo test; all dates trace to cited CAQM orders.
+16. Avoided-mortality counterfactuals: GEMM-based, WorldPop-weighted, per ward, point + CI, labeled "modeled estimate"; method citations rendered on `/receipts`.
+17. Counterfactual timing scenario ("Stage III 48h earlier") renders with exposure delta + avoided-deaths delta + CI on the Ledger page.
 
 ## 10. Assumption ledger
 
@@ -141,7 +144,7 @@ flowchart LR
 |---|---|---|
 | A1 | Cities: Delhi deep, Mumbai standard, Bengaluru config-only | revised per review |
 | A2 | Name "VayuDrishti" | user may rename |
-| A3 | GEE via **service-account JSON** (headless, cron-capable). User fetching keys | in progress (user) |
+| A3 | GEE via service account `vayudrishti-ee@dmjone` — CREATED, roles viewer + serviceUsageConsumer, key at `~/.config/vayudrishti/gee-sa.json`, smoke-tested vs S5P 2026-07-22. `.env`: `GEE_SERVICE_ACCOUNT_JSON_PATH`, `GEE_PROJECT=dmjone` | DONE |
 | A4 | No `/super-admin` — static site, zero privileged ops | on record |
 | A5 | Vercel free deploy; repo push needs `gh` auth | parked to integration |
 | A6 | Advisories publish-time generated, runtime LLM-free | proceed |
@@ -162,6 +165,27 @@ flowchart LR
 | `vayu-ops` | `.github/workflows/` (cron + gate + freeze toggle + SHA-pinned), vercel config, README, .env.example, secret-scan gate, humanizer gate, CHANGELOG, architecture diagram, demo video script | acceptance 7, 12-13 |
 
 Peer protocol: milestone updates to `main`; blockers → SendMessage the owning peer directly; contract change = schema file + SendMessage same commit; no remote push until ops confirms `gh` auth with user.
+
+## 13. Intervention Ledger — the world-first capability (v3 addendum, 2026-07-22)
+
+**Claim (precise, defensible):** the first *operational* system anywhere that answers, ward by ward and weather-adjusted, whether a city's emergency pollution measures (Delhi GRAP stages) actually worked, and estimates what acting earlier would have saved in exposure and premature deaths. One-off academic GRAP evaluations exist (city-level, retrospective papers); IITM DSS forecasts; no deployed system does continuous ward-level causal audit with mortality counterfactuals. Novelty statement + prior-art citations rendered on `/receipts` in exactly this scoped wording.
+
+**Method stack (all peer-reviewed, composed — research-level depth):**
+1. **Weather normalization (deweathering)**: Grange & Carslaw meteorological-normalization method (Atmos. Chem. Phys. 2019) on our LightGBM stack — resample meteorology, predict counterfactual "weather-neutral" PM2.5 series per station/ward. Kills the "it rained, not the policy" confound.
+2. **Real intervention calendar**: Delhi GRAP stage transitions for winter 2025-26 compiled from actual CAQM orders (public record), each dated entry carries its source URL. `config/interventions/delhi.yaml`. Zero invented dates.
+3. **Causal effect estimation**: event-study around each stage transition on the weather-normalized series; **placebo tests** on matched high-pollution non-intervention days (defeats the regression-to-mean attack — GRAP triggers when pollution is already high); block-bootstrap CIs. Assumptions listed explicitly on `/receipts`.
+4. **Health translation**: GEMM exposure-response (Burnett et al., PNAS 2018) hazard ratios + WorldPop 100m population (via GEE, service account live) aggregated per ward → avoided exposure (person-µg/m³-hours) and avoided premature deaths, point + CI, labeled modeled estimates.
+5. **Counterfactual timing engine**: shift intervention date in the normalized series model ("Stage III 48h earlier") → delta exposure → delta deaths, with CI. The demo line: "GRAP Stage III saved an estimated N lives in NW Delhi; acting 48h earlier would have saved M more."
+
+**Honesty-by-design**: if a stage shows no detectable effect, the Ledger says so — a null accountability finding is itself a headline capability. Every number carries CI + assumptions; every date carries a source.
+
+**New contracts** [owner models; freeze with the rest]:
+- `web/public/data/delhi/interventions.json`: `{calendar:[{stage, start_utc, end_utc, source_url}], effects:[{stage_transition, effect_ugm3, ci_low, ci_high, placebo_pass, n_days, method_notes}]}`
+- `web/public/data/delhi/ledger.json`: `{wards:[{ward_id, avoided_exposure_pugh, avoided_deaths, ci_low, ci_high}], counterfactuals:[{scenario, delta_exposure, delta_deaths, ci_low, ci_high}], citations[]}`
+
+**Team deltas**: data = GRAP calendar compilation (real CAQM orders) + WorldPop ward population via GEE; models = deweathering, event-study + placebo + bootstrap, GEMM, timing engine, 2 new schemas; web = Ledger flagship page (normalized-vs-raw ribbon over stage timeline, ward effect map, avoided-deaths counters with CI, timing slider, citations); ops = README/pitch/video updated to lead with the Ledger.
+
+**Satellite expansion slots** (user can register more): GEMS geostationary (hourly Asia AQ, NIER registration) and INSAT-3D/3DR AOD (ISRO MOSDAC registration — Indian satellite for Indian air). Pipeline exposes optional extractor slots; absence never blocks.
 
 ## 12. Risks (worst case on record)
 
