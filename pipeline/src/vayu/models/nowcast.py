@@ -65,14 +65,17 @@ def _station_coords(frame: pd.DataFrame) -> dict[str, tuple[float, float]]:
     return coords
 
 
-def loso_cv(parquet_df: pd.DataFrame, *, max_rows: int = 180_000, cv_rounds: int = 150) -> dict:
+def loso_cv(parquet_df: pd.DataFrame, *, max_rows: int = 180_000, cv_rounds: int = 150,
+           max_folds: int | None = None) -> dict:
     """Leave-One-Station-Out CV, stratified by distance-to-nearest-retained-station.
 
     Returns {"baseline": "IDW", "buckets": [{dist_km, model_rmse, idw_rmse, n}], "overall": {...}}.
     Uses the precomputed leave-self-out ``idw_pm25`` column as the IDW baseline prediction.
     For tractability on the full feature store, whole timestamps are subsampled to about
     ``max_rows`` (every retained hour keeps its complete station field, so the spatial
-    fusion signal is intact); the estimate stays on real data at reduced temporal density.
+    fusion signal is intact). ``max_folds`` evaluates a representative subset of held-out
+    stations while STILL training on all others (spatial density preserved); the estimate
+    stays on real data.
     """
     df = parquet_df
     if len(df) > max_rows:
@@ -83,9 +86,13 @@ def loso_cv(parquet_df: pd.DataFrame, *, max_rows: int = 180_000, cv_rounds: int
     frame = build_station_frame(df)
     stations = sorted(frame["station_id"].unique())
     coords = _station_coords(frame)
+    eval_stations = stations
+    if max_folds and len(stations) > max_folds:
+        step = max(1, len(stations) // max_folds)
+        eval_stations = stations[::step][:max_folds]
     per_station: list[dict] = []
 
-    for held in stations:
+    for held in eval_stations:
         train = frame[frame["station_id"] != held]
         test = frame[frame["station_id"] == held]
         if len(train) < 50 or test.empty:
