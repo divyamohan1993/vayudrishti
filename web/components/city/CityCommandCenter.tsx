@@ -144,6 +144,8 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
               <WardMap
                 cityName={cityName}
                 wardsUrl={city ? dataUrl(city.files.wards) : null}
+                roadsUrl={city?.files.roads ? dataUrl(city.files.roads) : null}
+                bbox={city?.bbox}
                 wards={nowcastWards}
                 forecast={forecastState.status === "ready" ? forecastState.data.wards : undefined}
                 wardsLoading={nowcastState.status === "loading"}

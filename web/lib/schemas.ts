@@ -69,6 +69,7 @@ export const cityFiles = z.object({
   interventions: z.string().optional(),
   ledger: z.string().optional(),
   briefs: z.string().optional(),
+  roads: z.string().optional(),
 });
 export type CityFiles = z.infer<typeof cityFiles>;
 
@@ -521,6 +522,21 @@ export const wardsGeojson = z.object({
       type: z.literal("Feature"),
       geometry: z.unknown(),
       properties: wardProperties,
+    }),
+  ),
+});
+
+export const roadsGeojson = z.object({
+  type: z.literal("FeatureCollection"),
+  features: z.array(
+    z.object({
+      type: z.literal("Feature"),
+      geometry: z.unknown(),
+      properties: z
+        .object({ name: z.string().optional(), class: z.string().optional() })
+        .passthrough()
+        .nullable()
+        .optional(),
     }),
   ),
 });

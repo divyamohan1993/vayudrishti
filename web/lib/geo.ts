@@ -74,20 +74,28 @@ export function makeProjector(
   };
 }
 
-/** SVG path data for a Polygon / MultiPolygon under a projector. */
+/** SVG path data for a Polygon / MultiPolygon (closed) or LineString (open). */
 export function geometryToPath(geom: Geometry, p: Projector): string {
-  const ringToPath = (ring: Position[]) => {
+  const toPath = (coords: Position[], close: boolean) => {
     let d = "";
-    ring.forEach((pos, i) => {
+    coords.forEach((pos, i) => {
       const [x, y] = p.project(pos[0], pos[1]);
       d += `${i === 0 ? "M" : "L"}${x.toFixed(1)} ${y.toFixed(1)}`;
     });
-    return `${d}Z`;
+    return close ? `${d}Z` : d;
   };
-  if (geom.type === "Polygon") return geom.coordinates.map(ringToPath).join("");
-  if (geom.type === "MultiPolygon")
-    return geom.coordinates.map((poly) => poly.map(ringToPath).join("")).join("");
-  return "";
+  switch (geom.type) {
+    case "Polygon":
+      return geom.coordinates.map((r) => toPath(r, true)).join("");
+    case "MultiPolygon":
+      return geom.coordinates.map((poly) => poly.map((r) => toPath(r, true)).join("")).join("");
+    case "LineString":
+      return toPath(geom.coordinates, false);
+    case "MultiLineString":
+      return geom.coordinates.map((l) => toPath(l, false)).join("");
+    default:
+      return "";
+  }
 }
 
 /** Centroid of a geometry's outer rings (rough, for label placement). */

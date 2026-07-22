@@ -75,6 +75,7 @@ function PatternDefs() {
  */
 export function StaticChoropleth({
   fc,
+  roads,
   data,
   selectedWard,
   onSelect,
@@ -83,6 +84,7 @@ export function StaticChoropleth({
   cityName,
 }: {
   fc: WardFC;
+  roads?: WardFC;
   data: Map<string, WardDatum>;
   selectedWard: string | null;
   onSelect: (id: string | null) => void;
@@ -90,7 +92,7 @@ export function StaticChoropleth({
   className?: string;
   cityName: string;
 }) {
-  const { paths, width, height } = useMemo(() => {
+  const { paths, roadDs, width, height } = useMemo(() => {
     const bounds = featureBounds(fc);
     const [minLon, minLat, maxLon, maxLat] = bounds;
     const kx = Math.cos(((minLat + maxLat) / 2) * (Math.PI / 180));
@@ -105,8 +107,11 @@ export function StaticChoropleth({
       name: f.properties.name,
       d: geometryToPath(f.geometry, proj),
     }));
-    return { paths, width: w, height: h };
-  }, [fc]);
+    const roadDs = (roads?.features ?? [])
+      .map((f) => geometryToPath(f.geometry, proj))
+      .filter(Boolean);
+    return { paths, roadDs, width: w, height: h };
+  }, [fc, roads]);
 
   return (
     <svg
@@ -142,6 +147,13 @@ export function StaticChoropleth({
           );
         })}
       </g>
+      {roadDs.length > 0 && (
+        <g aria-hidden pointerEvents="none">
+          {roadDs.map((d, i) => (
+            <path key={i} d={d} fill="none" stroke="rgba(244,239,228,0.5)" strokeWidth={0.8} vectorEffect="non-scaling-stroke" />
+          ))}
+        </g>
+      )}
     </svg>
   );
 }
