@@ -1,0 +1,37 @@
+#!/bin/sh
+# VayuDrishti commit-msg gate: keep commit messages human (no unicode dashes,
+# no AI-tell phrasing), matching the prose gate. Bypass once with
+# HUMANIZE_SKIP=1 git commit, or git commit --no-verify. Degrades to a dash-only
+# grep when Node is missing, and never errors when the guard is absent.
+# Scans ONLY the commit message (a temp .md copy passed as the sole file), not
+# the repo's tracked prose.
+MSG_FILE="$1"
+[ -n "$MSG_FILE" ] && [ -f "$MSG_FILE" ] || exit 0
+
+if [ "${HUMANIZE_SKIP:-}" = "1" ]; then
+  echo "humanize: commit-msg gate bypassed via HUMANIZE_SKIP=1." >&2
+  exit 0
+fi
+
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
+GUARD=""
+for c in "$ROOT/.humanize/humanize-guard.mjs" "$(dirname -- "$0")/humanize-guard.mjs"; do
+  [ -f "$c" ] && { GUARD="$c"; break; }
+done
+
+if command -v node >/dev/null 2>&1 && [ -n "$GUARD" ]; then
+  # Copy to a .md temp so the guard scans ONLY the message (explicit prose file),
+  # never the tracked tree. Strip the comment lines git adds to the editor buffer.
+  TMP="${MSG_FILE}.humanizecheck.md"
+  grep -v '^#' "$MSG_FILE" > "$TMP" 2>/dev/null || cp "$MSG_FILE" "$TMP"
+  node "$GUARD" --gate "$TMP"; rc=$?
+  rm -f "$TMP"
+  [ "$rc" -eq 0 ] || exit 1
+else
+  # Node missing: block only on unicode dashes (em/en/figure/minus and kin).
+  if grep -Fq -e '‒' -e '–' -e '—' -e '―' -e '−' -e '‐' -e '‑' "$MSG_FILE" 2>/dev/null; then
+    echo "humanize: unicode dash in commit message (Node missing, dash-only check). Blocked." >&2
+    exit 1
+  fi
+fi
+exit 0

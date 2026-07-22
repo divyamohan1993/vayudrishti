@@ -1,0 +1,76 @@
+#!/bin/sh
+# VayuDrishti pre-push gate. Two stages:
+#   1. secret-scan  -> security is absolute, NO env bypass. The only escape is
+#      git's own `git push --no-verify` (bypasses every hook, on the record).
+#   2. humanize     -> blocks unicode dashes (always) + AI-tell phrasing (gate
+#      mode) in the prose being pushed. Bypass once: HUMANIZE_SKIP=1 git push.
+# Chains husky/lefthook/native pre-push. Degrades to a dash-only grep when Node
+# is missing. Reads the push ref list on stdin (git contract) for stage 2 only.
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null || echo .)
+# CDPATH= prefixes this one cd so a user's CDPATH cannot redirect it or print to
+# stdout. Deliberate idiom, not a stray assignment.
+# shellcheck disable=SC1007
+SELF_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+SELF="$SELF_DIR/$(basename -- "$0")"
+
+# --- Stage 1: secret scan (non-bypassable). </dev/null keeps the push-ref stdin intact. ---
+if [ -f "$ROOT/scripts/secret-scan.sh" ]; then
+  sh "$ROOT/scripts/secret-scan.sh" </dev/null || {
+    echo "pre-push: secret-scan BLOCKED this push. Fix the leak (or, only in a real emergency, git push --no-verify)." >&2
+    exit 1
+  }
+fi
+
+# --- Stage 2: humanize prose gate ---
+if [ "${HUMANIZE_SKIP:-}" = "1" ]; then
+  echo "humanize: GATE BYPASSED via HUMANIZE_SKIP=1 (prose not checked)." >&2
+else
+  ZERO="0000000000000000000000000000000000000000"
+  EMPTY="4b825dc642cb6eb9a060e54bf8d69288fbee4904"  # git empty-tree object
+  FILES=""
+  while read -r _lref lsha _rref rsha; do
+    [ "$lsha" = "$ZERO" ] && continue                    # branch deletion
+    if [ "$rsha" = "$ZERO" ]; then                       # new branch: only new commits
+      newc=$(git rev-list "$lsha" --not --remotes 2>/dev/null)
+      if [ -n "$newc" ]; then
+        oldest=$(printf '%s\n' "$newc" | tail -n1)
+        if git rev-parse -q --verify "${oldest}^" >/dev/null 2>&1; then base="${oldest}^"; else base="$EMPTY"; fi
+      else base="$EMPTY"; fi
+    else
+      base="$rsha"
+    fi
+    # Gate SHIPPED prose. Internal design specs (docs/dmj/**) and the idea dump
+    # are engineering artifacts owned by the team, not user-facing copy: excluded.
+    NEW=$(git diff --name-only -z --diff-filter=ACM "$base" "$lsha" 2>/dev/null | tr '\0' '\n' \
+      | grep -Ei '\.(md|mdx|markdown|txt)$' | grep -Ev '^(docs/dmj/|idea\.md$)')
+    FILES=$(printf '%s\n%s\n' "$FILES" "$NEW")
+  done
+  FILES=$(printf '%s\n' "$FILES" | sed '/^[[:space:]]*$/d' | sort -u)
+
+  GUARD=""
+  for c in "$ROOT/.humanize/humanize-guard.mjs" "$SELF_DIR/humanize-guard.mjs"; do
+    [ -f "$c" ] && { GUARD="$c"; break; }
+  done
+
+  if [ -n "$FILES" ]; then
+    if command -v node >/dev/null 2>&1 && [ -n "$GUARD" ]; then
+      ( cd "$ROOT" && printf '%s\n' "$FILES" | tr '\n' '\0' | xargs -0 node "$GUARD" --gate ) || exit 1
+    else
+      if printf '%s\n' "$FILES" | while IFS= read -r f; do
+          [ -f "$ROOT/$f" ] || continue
+          grep -Fq -e '‒' -e '–' -e '—' -e '―' -e '−' -e '‐' -e '‑' "$ROOT/$f" 2>/dev/null && echo HIT
+        done | grep -q HIT; then
+        echo "humanize: unicode dash in pushed prose (Node missing, dash-only check). Blocked." >&2
+        exit 1
+      fi
+    fi
+  fi
+fi
+
+# --- Chain existing repo hooks (husky/lefthook/native); never call ourselves. ---
+for H in "$ROOT/.husky/pre-push" "$ROOT/.git/hooks/pre-push.local" "$ROOT/.git/hooks/pre-push"; do
+  [ -x "$H" ] || continue
+  case "$H" in "$SELF") continue ;; esac
+  "$H" "$@" || exit 1
+done
+exit 0
