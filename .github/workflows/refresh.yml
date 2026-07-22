@@ -73,7 +73,15 @@ jobs:
           GEE_PROJECT: ${{ vars.GEE_PROJECT }}             # non-secret project id (repo variable)
           VAYU_WEB_DATA_DIR: ${{ github.workspace }}/web/public/data
         # --city all is a special value (confirmed by vayu-data), not a --all flag.
-        run: uv run vayu publish --city all
+        # Budget: full publish run < 15 min (spec 15.8). Log wall-clock, warn if over.
+        run: |
+          start=$(date +%s)
+          uv run vayu publish --city all
+          dur=$(( $(date +%s) - start ))
+          echo "publish wall-clock: ${dur}s (budget 900s)"
+          if [ "$dur" -gt 900 ]; then
+            echo "::warning title=publish budget::publish took ${dur}s, over the 15-minute budget"
+          fi
 
       - name: Content gate (REQUIRED, blocks malformed publish, acceptance 13)
         working-directory: pipeline
