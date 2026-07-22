@@ -13,6 +13,11 @@
 # testing
 /coverage
 
+# verification screenshots (local artifacts, not committed)
+/screenshots
+# playwright-mcp local snapshot output
+/.playwright-mcp
+
 # next.js
 /.next/
 /out/

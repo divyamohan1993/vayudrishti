@@ -100,6 +100,19 @@ All notable changes to VayuDrishti are recorded here. Format follows
     reasoning-agent data flows.
   - `docs/demo-video-script.md`: three-minute script, Ledger first.
 
+### Fixed
+
+- 2026-07-23 Final web verification pass against all-real data (vayu-web2):
+  - `web/components/map/MapCanvas.tsx`: removed a stale `eslint-disable` directive
+    that suppressed nothing, so `pnpm lint` reports zero warnings and zero errors.
+  - `web/.gitignore`: ignore the local `screenshots/` and `.playwright-mcp/`
+    verification artifacts.
+  - Verified on the production static export: sample-data banners cleared on every
+    surface, the Delhi ward choropleth and the roads layer render (290 wards, 3571
+    road lines), replay shows the real Nov-2025 out-of-fold dates behind the
+    historical banner, and the Ledger, Receipts, and briefs read their real numbers.
+    Lighthouse on `/` (mobile): performance 86 to 88, accessibility 100.
+
 ### Notes
 
 - Metric placeholders in the README and demo script are filled at integration

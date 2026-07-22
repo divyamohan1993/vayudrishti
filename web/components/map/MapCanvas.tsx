@@ -217,7 +217,6 @@ export default function MapCanvas({
 
   useEffect(() => {
     if (mapRef.current?.isStyleLoaded()) updateGibs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [satellite]);
 
   return <div ref={containerRef} className="h-full w-full" />;
