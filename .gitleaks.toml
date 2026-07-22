@@ -1,0 +1,27 @@
+# gitleaks config for VayuDrishti. Extends the default ruleset and allowlists
+# paths that legitimately hold no committed secret: the gitignored .env (real
+# local keys, never committed), the committed dummy .env.example, dependency and
+# build trees, and the intentional test fixtures (poisoned samples carry FAKE
+# keys on purpose). Everything else is scanned by the full default rule set.
+title = "VayuDrishti gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Paths with no committed secrets (local env, deps, build, fixtures)."
+paths = [
+  '''(^|/)\.env$''',
+  '''(^|/)\.env\.(local|development|production|test)$''',
+  '''(^|/)\.env\.example$''',
+  '''(^|/)node_modules/''',
+  '''(^|/)\.venv/''',
+  '''(^|/)\.next/''',
+  '''(^|/)out/''',
+  '''(^|/)dist/''',
+  '''(^|/)__pycache__/''',
+  '''(^|/)tests/fixtures/''',
+  '''(^|/)pnpm-lock\.yaml$''',
+  '''(^|/)package-lock\.json$''',
+  '''(^|/)uv\.lock$''',
+]
