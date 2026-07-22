@@ -65,13 +65,22 @@ def _station_coords(frame: pd.DataFrame) -> dict[str, tuple[float, float]]:
     return coords
 
 
-def loso_cv(parquet_df: pd.DataFrame) -> dict:
+def loso_cv(parquet_df: pd.DataFrame, *, max_rows: int = 180_000, cv_rounds: int = 150) -> dict:
     """Leave-One-Station-Out CV, stratified by distance-to-nearest-retained-station.
 
     Returns {"baseline": "IDW", "buckets": [{dist_km, model_rmse, idw_rmse, n}], "overall": {...}}.
     Uses the precomputed leave-self-out ``idw_pm25`` column as the IDW baseline prediction.
+    For tractability on the full feature store, whole timestamps are subsampled to about
+    ``max_rows`` (every retained hour keeps its complete station field, so the spatial
+    fusion signal is intact); the estimate stays on real data at reduced temporal density.
     """
-    frame = build_station_frame(parquet_df)
+    df = parquet_df
+    if len(df) > max_rows:
+        ts = np.sort(df["ts_utc"].unique())
+        stride = max(1, int(np.ceil(len(df) / max_rows)))
+        keep = set(ts[::stride].tolist())
+        df = df[df["ts_utc"].isin(keep)]
+    frame = build_station_frame(df)
     stations = sorted(frame["station_id"].unique())
     coords = _station_coords(frame)
     per_station: list[dict] = []
@@ -87,7 +96,7 @@ def loso_cv(parquet_df: pd.DataFrame) -> dict:
         if not others:
             continue
         d_near = float(np.min([haversine_km(o[0], o[1], hlat, hlon) for o in others]))
-        model = train_quantile(feature_matrix(train), train[TARGET].to_numpy(float), 0.5)
+        model = train_quantile(feature_matrix(train), train[TARGET].to_numpy(float), 0.5, rounds=cv_rounds)
         y_true = test[TARGET].to_numpy(float)
         y_model = np.clip(model.predict(feature_matrix(test)), 0, None)
         y_idw = test["idw_pm25"].to_numpy(float)

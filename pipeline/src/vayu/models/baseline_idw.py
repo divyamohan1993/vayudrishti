@@ -50,6 +50,16 @@ def idw_predict(
     return out
 
 
+def great_circle_matrix(lat: np.ndarray, lon: np.ndarray) -> np.ndarray:
+    """Pairwise great-circle distance matrix (km) for a set of points."""
+    lat = np.radians(np.asarray(lat, float))
+    lon = np.radians(np.asarray(lon, float))
+    dlat = lat[:, None] - lat[None, :]
+    dlon = lon[:, None] - lon[None, :]
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat)[:, None] * np.cos(lat)[None, :] * np.sin(dlon / 2) ** 2
+    return EARTH_KM * 2 * np.arcsin(np.sqrt(np.clip(a, 0.0, 1.0)))
+
+
 def idw_leave_one_out(lat: np.ndarray, lon: np.ndarray, val: np.ndarray, **kw) -> np.ndarray:
     """IDW prediction at each station from all OTHER stations (leave-self-out)."""
     lat = np.asarray(lat, float)

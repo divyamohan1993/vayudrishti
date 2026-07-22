@@ -278,6 +278,7 @@ class ManifestFiles(_Strict):
     enforcement: CleanStr | None = None
     advisories: CleanStr | None = None
     wards: CleanStr | None = None
+    roads: CleanStr | None = None  # per-city road network geojson (vayu-data)
     replay_index: CleanStr | None = None
     interventions: CleanStr | None = None
     ledger: CleanStr | None = None

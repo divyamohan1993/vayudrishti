@@ -57,6 +57,7 @@
               "enforcement": { "type": "string" },
               "advisories": { "type": "string" },
               "wards": { "type": "string" },
+              "roads": { "type": "string" },
               "replay_index": { "type": "string" },
               "interventions": { "type": "string" },
               "ledger": { "type": "string" },

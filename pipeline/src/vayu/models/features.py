@@ -11,7 +11,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from vayu.models.baseline_idw import haversine_km, idw_leave_one_out
+from vayu.models.baseline_idw import great_circle_matrix
 
 TARGET = "pm25"
 
@@ -61,29 +61,45 @@ def add_calendar(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-def add_spatial_context(df: pd.DataFrame) -> pd.DataFrame:
+def add_spatial_context(df: pd.DataFrame, *, power: float = 2.0, eps_km: float = 0.05) -> pd.DataFrame:
     """Per-timestamp IDW-of-other-stations, nearest-station distance, station count.
 
-    These give the fusion model its spatial signal while remaining computable at an
-    arbitrary inference point (grid cell) from the same station field.
+    Vectorized via a precomputed station distance matrix (station coordinates are fixed),
+    so it scales to the full feature store. Semantics match the IDW baseline: each row's
+    ``idw_pm25`` is the leave-self-out inverse-distance estimate from the OTHER stations
+    reporting at that timestamp. This is the spatial signal the fusion model needs, and it
+    is equally computable at an arbitrary inference point (grid cell).
     """
-    df = df.copy()
+    df = df.reset_index(drop=True).copy()
+    coords = df.groupby("station_id")[["lat", "lon"]].first()
+    sidx = {s: i for i, s in enumerate(coords.index)}
+    dmat = great_circle_matrix(coords["lat"].to_numpy(), coords["lon"].to_numpy())
+
+    row_sidx = df["station_id"].map(sidx).to_numpy()
+    row_val = df[TARGET].to_numpy(float)
     idw = np.full(len(df), np.nan)
     nearest = np.full(len(df), np.nan)
     count = np.zeros(len(df), dtype=int)
-    for _, grp in df.groupby("ts_utc", sort=False):
-        idxs = grp.index.to_numpy()
-        lat = grp["lat"].to_numpy(float)
-        lon = grp["lon"].to_numpy(float)
-        val = grp[TARGET].to_numpy(float)
-        n = len(grp)
-        idw[df.index.get_indexer(idxs)] = idw_leave_one_out(lat, lon, val)
-        for k in range(n):
-            others = np.arange(n) != k
-            if others.any():
-                d = haversine_km(lat[others], lon[others], lat[k], lon[k])
-                nearest[df.index.get_indexer(idxs[k:k + 1])[0]] = float(np.min(d))
-            count[df.index.get_indexer(idxs[k:k + 1])[0]] = n
+
+    for _, rows in df.groupby("ts_utc", sort=False).indices.items():
+        rows = np.asarray(rows)
+        present = row_sidx[rows]
+        vals = row_val[rows]
+        m = len(rows)
+        count[rows] = m
+        if m <= 1:
+            continue
+        sub = dmat[np.ix_(present, present)].copy()
+        np.fill_diagonal(sub, np.inf)  # exclude self
+        nearest[rows] = sub.min(axis=1)
+        sub = np.maximum(sub, eps_km)
+        w = 1.0 / np.power(sub, power)  # diagonal (inf distance) -> ~0 weight
+        valmask = (~np.isnan(vals)).astype(float)
+        denom = w @ valmask
+        num = w @ np.where(np.isnan(vals), 0.0, vals)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            idw[rows] = np.where(denom > 0, num / denom, np.nan)
+
     df["idw_pm25"] = idw
     df["nearest_dist_km"] = nearest
     df["station_count"] = count
