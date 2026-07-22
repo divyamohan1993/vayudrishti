@@ -107,8 +107,8 @@ def fetch_industrial(bbox: tuple[float, float, float, float], utm_epsg: int) -> 
 
 
 MAJOR_ROAD_CLASSES = "motorway|trunk|primary"
-ROAD_SIMPLIFY_DEG = 0.0002  # ~22 m; thin orientation lines only
-ROAD_COORD_DECIMALS = 5
+ROAD_SIMPLIFY_DEG = 0.003  # ~330 m Douglas-Peucker; faint orientation layer, ~55KB gzip
+ROAD_COORD_DECIMALS = 4  # ~11 m; keeps roads.geojson small for map perf
 
 
 def emit_roads_geojson(

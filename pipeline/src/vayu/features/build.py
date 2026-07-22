@@ -9,6 +9,7 @@ config/schemas/feature-store.schema.json and never changes with key state.
 from __future__ import annotations
 
 import json
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -270,7 +271,10 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
 
     out = settings.feature_store_dir / slug / "hourly.parquet"
     out.parent.mkdir(parents=True, exist_ok=True)
-    df.to_parquet(out, index=False)
+    # Atomic write: a consumer (models training) never reads a half-written parquet.
+    tmp = out.with_name("hourly.parquet.tmp")
+    df.to_parquet(tmp, index=False)
+    os.replace(tmp, out)
     lin.write(settings.feature_store_dir / slug / "lineage.json")
 
     log.info(
