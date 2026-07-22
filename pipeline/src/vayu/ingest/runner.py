@@ -20,7 +20,7 @@ from vayu.settings import get_settings
 
 log = get_logger("ingest.runner")
 
-ALL_SOURCES = ("wards", "openaq", "openmeteo", "osm", "firms", "gee")
+ALL_SOURCES = ("wards", "openaq", "live", "openmeteo", "osm", "firms", "gee")
 
 
 def _resolve_sources(sources: str) -> set[str]:
@@ -65,6 +65,25 @@ def _ingest_city(slug: str, src: set[str], start: str | None) -> None:
         )
         if not base.empty:
             stations = base.groupby("station_id")[["lat", "lon"]].first().reset_index()
+
+    if "live" in src:
+        from vayu.ingest import datagov_live, openaq_live
+
+        ids = active_station_ids(slug)
+        live = openaq_live.fetch_live(slug, ids)
+        lin.add(
+            source="openaq-v3-live",
+            url=openaq_live.LINEAGE_URL,
+            resource_id="latest",
+            rows=len(live),
+        )
+        dg = datagov_live.fetch_datagov(slug, cfg.bbox_tuple)
+        lin.add(
+            source="data-gov-in-cpcb",
+            url=datagov_live.BASE_URL,
+            resource_id=datagov_live.RESOURCE_ID,
+            rows=len(dg),
+        )
 
     # OSM/GEE can run without a same-run OpenAQ backfill: derive station coords
     # from the committed discovery seed.

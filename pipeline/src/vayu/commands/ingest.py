@@ -14,7 +14,7 @@ def register(subparsers: argparse._SubParsersAction) -> None:
     p.add_argument(
         "--sources",
         default="all",
-        help="Comma list: openaq,openmeteo,firms,osm,datagov,gee (or 'all').",
+        help="Comma list: wards,openaq,live,openmeteo,osm,firms,gee (or 'all').",
     )
     p.add_argument(
         "--start",

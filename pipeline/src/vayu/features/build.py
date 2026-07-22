@@ -20,7 +20,7 @@ from shapely.geometry import Point
 from vayu import upwind
 from vayu.cityconfig import CityConfig, load_city, resolve_cities
 from vayu.geo import assign_points_to_wards, read_geojson
-from vayu.ingest import firms, openmeteo
+from vayu.ingest import datagov_live, firms, openaq_live, openmeteo
 from vayu.ingest import openaq_archive as oaq
 from vayu.ingest.openaq_discover import discover_locations, load_seed
 from vayu.lineage import LineageLog
@@ -53,21 +53,71 @@ def active_station_ids(slug: str) -> list[int]:
     return sorted(active)
 
 
+def _append_live(
+    base: pd.DataFrame, slug: str, station_ids: list[int], cfg: CityConfig, lin: LineageLog
+) -> pd.DataFrame:
+    """Concat live current readings onto the archive tail (dedup, live preferred).
+
+    OpenAQ v3 /latest is the reliable primary; data.gov.in is best-effort (flaky).
+    Live rows overwrite overlapping archive hours and extend the series toward now.
+    """
+    live_frames = []
+    oaq_live = openaq_live.fetch_live(slug, station_ids)
+    if not oaq_live.empty:
+        live_frames.append(oaq_live)
+        lin.add(
+            source="openaq-v3-live",
+            url=openaq_live.LINEAGE_URL,
+            resource_id="latest",
+            rows=len(oaq_live),
+        )
+    dg = datagov_live.fetch_datagov(slug, cfg.bbox_tuple)
+    if not dg.empty:
+        live_frames.append(dg)
+        lin.add(
+            source="data-gov-in-cpcb",
+            url=datagov_live.BASE_URL,
+            resource_id=datagov_live.RESOURCE_ID,
+            rows=len(dg),
+        )
+    if not live_frames:
+        return base
+    live = oaq.clip_invalid(pd.concat(live_frames, ignore_index=True))
+    combined = pd.concat([base, live], ignore_index=True)
+    combined = combined.drop_duplicates(["station_id", "ts_utc"], keep="last")
+    combined = combined.sort_values(["station_id", "ts_utc"]).reset_index(drop=True)
+    log.info(
+        "features.live_appended",
+        city=slug,
+        live_rows=len(live),
+        new_last=str(combined["ts_utc"].max()),
+    )
+    return combined
+
+
 def add_meteo(base: pd.DataFrame, slug: str, start: str, end: str, lin: LineageLog) -> pd.DataFrame:
     cache = get_settings().raw_dir / slug / "meteo"
     coords = base.groupby("station_id")[["lat", "lon"]].first()
     frames = []
     for station_id, row in coords.iterrows():
-        m = openmeteo.fetch_archive_cached(
-            station_id, float(row["lat"]), float(row["lon"]), start, end, cache
-        )
+        lat, lon = float(row["lat"]), float(row["lon"])
+        archive = openmeteo.fetch_archive_cached(station_id, lat, lon, start, end, cache)
+        # Forecast API covers the recent tail (incl. live hours) the ERA5 archive lags.
+        try:
+            recent = openmeteo.fetch_forecast(lat, lon)
+        except Exception as exc:  # noqa: BLE001 - forecast is best-effort for live hours
+            log.warning("meteo.forecast_error", station=station_id, error=type(exc).__name__)
+            recent = archive.iloc[:0]
+        m = pd.concat([archive, recent], ignore_index=True).drop_duplicates(
+            "ts_utc", keep="first"
+        )  # archive (ERA5 final) preferred where they overlap
         m["station_id"] = station_id
         frames.append(m)
     meteo = pd.concat(frames, ignore_index=True)
     lin.add(
         source="open-meteo-archive",
         url=openmeteo.ARCHIVE_URL,
-        resource_id="era5:hourly",
+        resource_id="era5:hourly+forecast",
         rows=len(meteo),
     )
     return base.merge(meteo, on=["station_id", "ts_utc"], how="left")
@@ -248,6 +298,7 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
     if base.empty:
         raise RuntimeError(f"OpenAQ backfill returned no rows for {slug}")
     base = oaq.clip_invalid(base)  # drop sensor-error spikes from cached data
+    base = _append_live(base, slug, station_ids, cfg, lin)  # close the ~4-day archive lag
 
     start = f"{oaq.ARCHIVE_START[0]}-{oaq.ARCHIVE_START[1]:02d}-01"
     end = openmeteo.default_end_date()

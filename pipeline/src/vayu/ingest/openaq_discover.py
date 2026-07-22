@@ -83,6 +83,12 @@ def discover_locations(city: CityConfig, *, write_seed: bool = True) -> list[dic
             )
             if not (set(params) & POLLUTANTS):
                 continue
+            # sensor_id -> pollutant, for mapping the v3 /latest live feed.
+            sensor_map = {
+                str(s["id"]): (s.get("parameter") or {}).get("name")
+                for s in (loc.get("sensors") or [])
+                if s.get("id") and (s.get("parameter") or {}).get("name") in POLLUTANTS
+            }
             results.append(
                 {
                     "location_id": loc["id"],
@@ -90,6 +96,7 @@ def discover_locations(city: CityConfig, *, write_seed: bool = True) -> list[dic
                     "lat": lat,
                     "lon": lon,
                     "parameters": [p for p in params if p in POLLUTANTS],
+                    "sensors": sensor_map,
                     "first": (loc.get("datetimeFirst") or {}).get("utc"),
                     "last": (loc.get("datetimeLast") or {}).get("utc"),
                 }
