@@ -18,6 +18,7 @@ export function AppFooter() {
         <nav aria-label="Footer" className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-ink-mute">
           <Link href="/ledger" className="hover:text-ink-soft">Intervention Ledger</Link>
           <Link href="/receipts" className="hover:text-ink-soft">Receipts</Link>
+          <Link href="/methods" className="hover:text-ink-soft">Methods</Link>
           <Link href="/about-data" className="hover:text-ink-soft">Data &amp; sources</Link>
           <Link href="/pitch" className="hover:text-ink-soft">Pitch</Link>
         </nav>

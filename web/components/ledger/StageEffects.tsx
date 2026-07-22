@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/Badge";
 
 function verdict(e: StageEffect) {
   const straddlesZero = e.ci_low <= 0 && e.ci_high >= 0;
-  return { detectable: !straddlesZero && e.placebo_pass, straddlesZero };
+  return { detectable: !straddlesZero && e.placebo_pass };
 }
 
 /**
@@ -16,7 +16,7 @@ export function StageEffects({ effects }: { effects: StageEffect[] }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       {effects.map((e, i) => {
-        const { detectable, straddlesZero } = verdict(e);
+        const { detectable } = verdict(e);
         const reduced = e.effect_ugm3 < 0;
         return (
           <div key={i} className="rounded-[var(--radius-md)] border p-3.5" style={{ borderColor: "var(--line)" }}>

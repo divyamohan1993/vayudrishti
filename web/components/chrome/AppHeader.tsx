@@ -17,6 +17,7 @@ const NAV: NavItem[] = [
   { href: "/ledger", label: "Intervention Ledger" },
   { href: "/city/delhi", label: "Command Center", match: "/city" },
   { href: "/receipts", label: "Receipts" },
+  { href: "/methods", label: "Methods" },
   { href: "/about-data", label: "Data" },
 ];
 
