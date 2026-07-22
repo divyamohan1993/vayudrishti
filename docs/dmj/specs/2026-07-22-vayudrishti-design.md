@@ -110,9 +110,9 @@ flowchart LR
 - [data] `web/public/data/{city}/wards.geojson`: polygons + `properties.ward_id` (convention §5.0), `name`.
 - [models] `web/public/data/{city}/nowcast.json`: `{generated_at, fixture?, grid_meta, grid:[{cell_id, pm25_p50, pm25_p90, subindex24h, category}], wards:[{ward_id, name, pm25_p50, pm25_p90, subindex24h, category, confidence}]}`
 - [models] `web/public/data/{city}/forecast.json`: `{generated_at, fixture?, horizons_h:[24,48,72], wards:[{ward_id, name, series:[{h, pm25_p50, pm25_p90, subindex24h, category, confidence}]}]}`
-- [models] `attribution.json`: `[{ward_id, shares:{traffic,industry,biomass,dust,residential_other}, confidence, method_notes}]`
-- [models] `enforcement.json`: ranked `[{ward_id, source_label, confidence, priority_score, evidence:{trend_72h:number[], persistence_days, exceedance_pct}, action}]`
-- [models] `advisories.json`: `[{ward_id, risk_level, langs:{en, hi, regional?}}]`
+- [models] `attribution.json`: `{generated_at, fixture?, wards:[{ward_id, shares:{traffic,industry,biomass,dust,residential_other}, confidence, method_notes}]}`
+- [models] `enforcement.json`: `{generated_at, fixture?, ranked:[{ward_id, source_label, confidence, priority_score, evidence:{trend_72h:number[], persistence_days, exceedance_pct}, action}]}`
+- [models] `advisories.json`: `{generated_at, fixture?, wards:[{ward_id, risk_level, langs:{en, hi, regional?}}]}` (envelope form ratified 2026-07-22: every §8 JSON = object envelope with generated_at + fixture flag)
 - [models] `receipts.json`: `{cities:{...nowcast_cv (stratified curve), forecast per h (rmse, mae, persistence_rmse, seasonal_naive_rmse, skill_pct, n, embargo_h), attribution_directional_checks, ablation?}, honesty_notes[], lineage:[{source, base_url, resource_id, fetched_at, rows}]}`
 - [models] `web/public/data/{city}/replay/{YYYY-MM-DD}/…` same shapes from **out-of-fold predictions only** + [models] `replay/index.json`.
 - [models] `web/public/data/manifest.json`: cities, file index, `generated_at`, `sat_numeric`, `fixture`.
@@ -186,6 +186,35 @@ Peer protocol: milestone updates to `main`; blockers → SendMessage the owning 
 **Team deltas**: data = GRAP calendar compilation (real CAQM orders) + WorldPop ward population via GEE; models = deweathering, event-study + placebo + bootstrap, GEMM, timing engine, 2 new schemas; web = Ledger flagship page (normalized-vs-raw ribbon over stage timeline, ward effect map, avoided-deaths counters with CI, timing slider, citations); ops = README/pitch/video updated to lead with the Ledger.
 
 **Satellite expansion slots** (user can register more): GEMS geostationary (hourly Asia AQ, NIER registration) and INSAT-3D/3DR AOD (ISRO MOSDAC registration — Indian satellite for Indian air). Pipeline exposes optional extractor slots; absence never blocks.
+
+## 14. Agentic Actionable-Inference Layer — Nemotron (v4 addendum, 2026-07-22)
+
+**What**: a reasoning-agent framework that turns VayuDrishti's published intelligence (nowcast, forecast, attribution, enforcement, ledger, receipts) into **verified, evidence-cited Action Briefs** — the step from "risk picture" to "do this, in this window, expect this effect, here is the proof". Model: `nvidia/nemotron-3-ultra-550b-a55b` via hosted NIM (`https://integrate.api.nvidia.com/v1`, OpenAI-compatible), key `NVIDIA_API_KEY` (present in `.env`).
+
+**Model capabilities used (per NIM reference doc):** thinking mode (`chat_template_kwargs: {enable_thinking: true, force_nonempty_content: true}`), `reasoning_budget` hard ceiling per role, OpenAI-format tool calling with reasoning, `</think>`-tag trace parsing, streaming (copilot path), temperature/top_p tuned per role. No native `response_format` json-schema → final answer via a `submit_brief` tool whose parameters ARE the brief schema + pydantic validation + max-2 repair loop.
+
+**Agent roles (pipeline `vayu/agents/*`, runs at publish time):**
+1. **Situation Analyst** (thinking on, ~8k budget): tool-scans city artifacts, finds compound emerging risks (forecast band crossings × upwind fires × wind alignment × attribution shifts).
+2. **Causal Strategist** (thinking on): joins situation to interventions/ledger — which measure historically moved this condition, expected effect with CI from OUR causal receipts, not folklore.
+3. **Action Drafter** (thinking on, smaller budget): ranked briefs — action, target wards, trigger window, expected effect + CI + basis_ref, owner agency, advisory languages.
+4. **Adversarial Verifier** (thinking on, low temperature): every claim must carry an `evidence_ref` resolving to a real field in the published JSONs; uncited or overreaching claims rejected; only verified briefs publish.
+
+**Tools** (deterministic, read-only, local — no network): `get_nowcast/forecast/attribution/enforcement/ledger/interventions/receipts/fires_upwind`.
+
+**Contracts** [owner: vayu-agents, same freeze discipline]:
+- `web/public/data/{city}/briefs.json`: `{generated_at, fixture?, model, briefs:[{id, headline, situation, action, target_wards[], trigger_window_utc, expected_effect:{ugm3, ci_low, ci_high, basis_ref}, owner, advisory_langs[], evidence_refs[], verifier:{passed, notes}}]}`
+- `web/public/data/agentlog.json`: redacted transparency trace `{runs:[{role, model, reasoning_budget, tokens_in, tokens_out, duration_ms}]}` — judges see the machinery; raw thinking NEVER published.
+
+**Safety/honesty**: NVIDIA key pipeline-side only; prompts contain only already-public published JSONs; LLM output = untrusted (sanitize, plain-text render, schema-gate); publish gate greps for `</think>` leakage; model + budgets disclosed on `/about-data`; agent failure → previous briefs kept + stale banner, site never blocks (per-panel degradation). Token frugality: briefs batch = bounded calls per publish, budget caps, ≤2 repairs.
+
+**Stretch (my go required)**: live "Commissioner's Copilot" — Vercel serverless proxy (key server-side, strict rate limit, origin allowlist, SSE streaming). Batch briefs always exist offline for finale.
+
+**New acceptance criteria:**
+18. `uv run vayu briefs --city delhi` → verified briefs.json; automated resolver proves every `evidence_ref` resolves against published artifacts; zero unverified claims published.
+19. Agent-layer failure never blocks publish; stale-briefs banner renders.
+20. No `</think>` content or key material in any published file (gated); model + reasoning budgets disclosed.
+
+**Team delta**: new teammate `vayu-agents` owns `vayu/agents/*` + briefs/agentlog schemas + smoke-tested NIM integration; vayu-web renders Briefs panel (+ copilot UI if stretch approved); vayu-ops adds NVIDIA_API_KEY to .env.example + Actions secret + masking; vayu-models' publish gate extends to briefs.json.
 
 ## 12. Risks (worst case on record)
 
