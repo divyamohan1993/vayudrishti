@@ -59,6 +59,33 @@ class TestValidPasses:
         NowcastDoc(**_valid_nowcast_payload())  # no raise
 
 
+class TestSecretTokenRejection:
+    """Gate-level reject of leaked credential shapes in any string field (ops request)."""
+
+    def test_nvidia_token_rejected(self):
+        payload = _valid_nowcast_payload()
+        payload["wards"][0]["name"] = "Ward nvapi-abcdef0123456789ABCDEF leak"
+        with pytest.raises(ValidationError):
+            NowcastDoc(**payload)
+
+    def test_openai_token_rejected(self):
+        payload = _valid_nowcast_payload()
+        payload["wards"][0]["name"] = "sk-ABCDEFGHIJKLMNOPQRSTUVWX0123456789"
+        with pytest.raises(ValidationError):
+            NowcastDoc(**payload)
+
+    def test_github_token_rejected(self):
+        payload = _valid_nowcast_payload()
+        payload["wards"][0]["name"] = "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+        with pytest.raises(ValidationError):
+            NowcastDoc(**payload)
+
+    def test_ordinary_hyphenated_word_allowed(self):
+        payload = _valid_nowcast_payload()
+        payload["wards"][0]["name"] = "Task-Force Industrial Area"  # not a token shape
+        NowcastDoc(**payload)  # no raise
+
+
 class TestModelInvariants:
     def test_html_in_name_rejected(self):
         payload = _valid_nowcast_payload()

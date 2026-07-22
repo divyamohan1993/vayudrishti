@@ -30,6 +30,13 @@ _ENTITY = re.compile(r"&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]{1,31});")
 # Dangerous URI scheme fragments that can appear inside a data string.
 _BAD_SCHEMES = ("javascript:", "vbscript:", "data:text/html")
 
+# Secret-token shapes: hard-reject a leaked credential embedded in any data string
+# (defence in depth with the ops secret-scan). NVIDIA nvapi-, OpenAI sk-, GitHub gh[opsu]_.
+# Length floors avoid false positives on ordinary hyphenated words (e.g. "task-force").
+_SECRET_TOKEN = re.compile(
+    r"\b(nvapi-[A-Za-z0-9_-]{16,}|sk-[A-Za-z0-9]{20,}|gh[opsu]_[A-Za-z0-9]{20,})"
+)
+
 _HTTP = re.compile(r"^https?://", re.IGNORECASE)
 
 
@@ -57,6 +64,8 @@ def validate_clean(value: str) -> str:
     for bad in _BAD_SCHEMES:
         if bad in low:
             raise ValueError(f"disallowed URI scheme fragment: {bad}")
+    if _SECRET_TOKEN.search(value):
+        raise ValueError("secret-token-shaped substring not permitted in emitted strings")
     return value
 
 
