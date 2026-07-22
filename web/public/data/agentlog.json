@@ -1,0 +1,63 @@
+{
+  "generated_at": "2026-07-22T20:08:35Z",
+  "model": "nvidia/nemotron-3-ultra-550b-a55b",
+  "runs": [
+    {
+      "role": "situation_analyst",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 8192,
+      "tokens_in": 4132,
+      "tokens_out": 1154,
+      "duration_ms": 22500,
+      "repairs": 0
+    },
+    {
+      "role": "causal_strategist",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 8192,
+      "tokens_in": 2166,
+      "tokens_out": 121,
+      "duration_ms": 2625,
+      "repairs": 0
+    },
+    {
+      "role": "causal_strategist",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 8192,
+      "tokens_in": 2733,
+      "tokens_out": 1571,
+      "duration_ms": 31062,
+      "repairs": 0
+    },
+    {
+      "role": "action_drafter",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 4096,
+      "tokens_in": 2200,
+      "tokens_out": 3030,
+      "duration_ms": 75187,
+      "repairs": 0
+    },
+    {
+      "role": "adversarial_verifier",
+      "city": "delhi",
+      "model": "nvidia/nemotron-3-ultra-550b-a55b",
+      "reasoning_budget": 4096,
+      "tokens_in": 1284,
+      "tokens_out": 717,
+      "duration_ms": 14187,
+      "repairs": 0
+    }
+  ],
+  "totals": {
+    "tokens_in": 12515,
+    "tokens_out": 6593,
+    "total": 19108,
+    "calls": 5
+  },
+  "fixture": true
+}
