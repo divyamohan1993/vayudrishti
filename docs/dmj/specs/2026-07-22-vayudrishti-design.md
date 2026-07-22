@@ -180,8 +180,8 @@ Peer protocol: milestone updates to `main`; blockers → SendMessage the owning 
 **Honesty-by-design**: if a stage shows no detectable effect, the Ledger says so — a null accountability finding is itself a headline capability. Every number carries CI + assumptions; every date carries a source.
 
 **New contracts** [owner models; freeze with the rest]:
-- `web/public/data/delhi/interventions.json`: `{calendar:[{stage, start_utc, end_utc, source_url}], effects:[{stage_transition, effect_ugm3, ci_low, ci_high, placebo_pass, n_days, method_notes}]}`
-- `web/public/data/delhi/ledger.json`: `{wards:[{ward_id, avoided_exposure_pugh, avoided_deaths, ci_low, ci_high}], counterfactuals:[{scenario, delta_exposure, delta_deaths, ci_low, ci_high}], citations[]}`
+- `web/public/data/delhi/interventions.json`: `{calendar:[{stage, start_utc, end_utc, source_url}], series:[{ts_utc, pm25_raw, pm25_normalized}], effects:[{stage_transition, effect_ugm3, ci_low, ci_high, placebo_pass, n_days, method_notes}]}` (series = city-level hourly or 3h, covers the ribbon chart window)
+- `web/public/data/delhi/ledger.json`: `{wards:[{ward_id, effect_ugm3, effect_ci_low, effect_ci_high, avoided_exposure_pugh, avoided_deaths, ci_low, ci_high}], counterfactuals:[{scenario, delta_exposure, delta_deaths, ci_low, ci_high}], citations[]}` (per-ward effect fields feed the effect map)
 
 **Team deltas**: data = GRAP calendar compilation (real CAQM orders) + WorldPop ward population via GEE; models = deweathering, event-study + placebo + bootstrap, GEMM, timing engine, 2 new schemas; web = Ledger flagship page (normalized-vs-raw ribbon over stage timeline, ward effect map, avoided-deaths counters with CI, timing slider, citations); ops = README/pitch/video updated to lead with the Ledger.
 
