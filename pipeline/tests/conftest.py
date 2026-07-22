@@ -313,6 +313,32 @@ def _receipts() -> dict[str, Any]:
     }
 
 
+def _fires() -> dict[str, Any]:
+    return {
+        "generated_at": _GEN,
+        "trailing_hours": 72,
+        "source": "NASA FIRMS VIIRS S-NPP",
+        "clusters": [
+            {
+                "cluster_id": "delhi_fc0",
+                "centroid": [28.90, 77.10],
+                "frp_total": 128.4,
+                "fire_count": 22,
+                "distance_km": 38.2,
+                "bearing_deg": 315.0,
+            },
+            {
+                "cluster_id": "delhi_fc1",
+                "centroid": [28.72, 76.88],
+                "frp_total": 44.1,
+                "fire_count": 7,
+                "distance_km": 61.5,
+                "bearing_deg": 302.4,
+            },
+        ],
+    }
+
+
 @pytest.fixture
 def artifacts() -> dict[str, Any]:
     """Loaded published artifacts for delhi (as the resolver/digest/tools receive them)."""
@@ -324,6 +350,7 @@ def artifacts() -> dict[str, Any]:
         "ledger": _ledger(),
         "interventions": _interventions(),
         "receipts": _receipts(),
+        "fires": _fires(),
     }
 
 
@@ -332,7 +359,15 @@ def data_root(tmp_path: Path, artifacts: dict[str, Any]) -> Path:
     """A web/public/data-style tree on disk: per-city files + global receipts."""
     city_dir = tmp_path / "delhi"
     city_dir.mkdir(parents=True)
-    for name in ("nowcast", "forecast", "attribution", "enforcement", "ledger", "interventions"):
+    for name in (
+        "nowcast",
+        "forecast",
+        "attribution",
+        "enforcement",
+        "ledger",
+        "interventions",
+        "fires",
+    ):
         (city_dir / f"{name}.json").write_text(json.dumps(artifacts[name]), encoding="utf-8")
     (tmp_path / "receipts.json").write_text(json.dumps(artifacts["receipts"]), encoding="utf-8")
     return tmp_path

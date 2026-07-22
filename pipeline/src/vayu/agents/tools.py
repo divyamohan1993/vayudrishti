@@ -6,8 +6,9 @@ numeric a tool returns carries its canonical resolver path (via ``make_ref``), s
 model copies from a tool result is resolvable by construction.
 
 A tool for a missing artifact returns ``{"available": false, ...}`` rather than raising, so a
-partial publish never crashes a role. ``get_fires_upwind`` degrades this way until an upwind
-fire summary is published (no fires artifact exists in the spec 8 contract yet).
+partial publish never crashes a role. ``get_fires_upwind`` reads the observed FIRMS clusters
+published at ``{city}/fires.json`` (vayu-data) and degrades cleanly when that file is absent or
+the fire window is quiet (off-season).
 """
 
 from __future__ import annotations
@@ -291,21 +292,62 @@ def get_receipts(ctx: ToolContext, city: str | None = None) -> dict[str, Any]:
     }
 
 
-def get_fires_upwind(ctx: ToolContext, ward_id: str | None = None) -> dict[str, Any]:
-    # No upwind-fire artifact is published in the spec 8 contract yet. Degrade cleanly;
-    # fires inform qualitative reasoning only until a citable summary is published.
+def get_fires_upwind(ctx: ToolContext, top: int | None = None) -> dict[str, Any]:
+    """Observed FIRMS fire clusters near the city (vayu-data), sorted by FRP. City-level:
+    each cluster carries frp_total / fire_count / distance_km / bearing_deg from the centroid,
+    all citable. Degrades cleanly when no fires.json is published or the window is quiet."""
     fires = ctx.artifacts.get("fires")
     if not fires:
+        return {"available": False, "artifact": "fires", "note": "no fires.json published"}
+    clusters = fires.get("clusters", [])
+    if not clusters:
         return {
-            "available": False,
-            "artifact": "fires",
-            "note": "upwind fire summary not published; treat fire context as qualitative only",
+            "available": True,
+            "clusters": [],
+            "note": f"no active fire clusters in trailing {fires.get('trailing_hours', '?')}h",
         }
-    wards = fires.get("wards", [])
-    if ward_id:
-        w = next((x for x in wards if x.get("ward_id") == ward_id), None)
-        return {"available": True, "ward": w, "found": bool(w)}
-    return {"available": True, "wards": wards[:_MAX_ITEMS]}
+    out = []
+    for c in clusters[: (top or _MAX_ITEMS)]:
+        cid = c.get("cluster_id")
+        out.append(
+            {
+                "cluster_id": cid,
+                "frp_total": c.get("frp_total"),
+                "fire_count": c.get("fire_count"),
+                "distance_km": c.get("distance_km"),
+                "bearing_deg": c.get("bearing_deg"),
+                "refs": [
+                    r
+                    for r in (
+                        _ref(
+                            ctx,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].frp_total",
+                            f"FRP total, {cid}",
+                        ),
+                        _ref(
+                            ctx,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].distance_km",
+                            f"distance km, {cid}",
+                        ),
+                        _ref(
+                            ctx,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].bearing_deg",
+                            f"bearing deg, {cid}",
+                        ),
+                    )
+                    if r
+                ],
+            }
+        )
+    return {
+        "available": True,
+        "trailing_hours": fires.get("trailing_hours"),
+        "source": fires.get("source"),
+        "clusters": out,
+    }
 
 
 # ---------------------------------------------------------------- registry + schemas
@@ -377,8 +419,8 @@ TOOL_SCHEMAS: list[dict[str, Any]] = [
         "type": "function",
         "function": {
             "name": "get_fires_upwind",
-            "description": "Upwind FIRMS fire context for a ward (qualitative only).",
-            "parameters": {"type": "object", "properties": _W},
+            "description": "Observed FIRMS fire clusters near the city (FRP, distance, bearing).",
+            "parameters": {"type": "object", "properties": {"top": {"type": "integer"}}},
         },
     },
 ]

@@ -153,8 +153,8 @@
                 },
                 "artifact": {
                   "type": "string",
-                  "enum": ["nowcast", "forecast", "attribution", "enforcement", "ledger", "interventions", "receipts"],
-                  "description": "Published artifact this ref resolves into (per-city file, except receipts which is global)."
+                  "enum": ["nowcast", "forecast", "attribution", "enforcement", "ledger", "interventions", "receipts", "fires"],
+                  "description": "Published artifact this ref resolves into (per-city file, except receipts which is global). 'fires' = observed upwind FIRMS clusters (vayu-data)."
                 },
                 "path": {
                   "type": "string",

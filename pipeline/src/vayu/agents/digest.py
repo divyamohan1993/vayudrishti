@@ -55,6 +55,51 @@ def _active_grap_stage(artifacts: dict[str, Any]) -> dict[str, Any] | None:
     return {"stage": stage, "start_utc": latest.get("start_utc"), "ref": ref}
 
 
+def _upwind_fires(artifacts: dict[str, Any]) -> dict[str, Any] | None:
+    """City-level observed FIRMS clusters (vayu-data), top by FRP, each with citable refs.
+    A compound-risk signal (forecast worsening x upwind fires x wind alignment, spec 14)."""
+    fires = artifacts.get("fires")
+    if not fires:
+        return None
+    out = []
+    for c in (fires.get("clusters") or [])[:5]:
+        cid = c.get("cluster_id")
+        out.append(
+            {
+                "cluster_id": cid,
+                "frp_total": c.get("frp_total"),
+                "fire_count": c.get("fire_count"),
+                "distance_km": c.get("distance_km"),
+                "bearing_deg": c.get("bearing_deg"),
+                "refs": [
+                    r
+                    for r in (
+                        _ref(
+                            artifacts,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].frp_total",
+                            f"FRP total, {cid}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].distance_km",
+                            f"distance km, {cid}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "fires",
+                            f"fires.clusters[cluster_id={cid}].bearing_deg",
+                            f"bearing deg, {cid}",
+                        ),
+                    )
+                    if r
+                ],
+            }
+        )
+    return {"trailing_hours": fires.get("trailing_hours"), "clusters": out}
+
+
 def _nowcast_by_ward(nowcast: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
     if not nowcast:
         return {}
@@ -269,6 +314,7 @@ def build_digest(artifacts: dict[str, Any], city: str) -> dict[str, Any]:
     return {
         "city": city,
         "active_grap_stage": grap,
+        "upwind_fires": _upwind_fires(artifacts),
         "candidate_count": len(candidates),
         "candidates": candidates,
         "available_artifacts": sorted(artifacts.keys()),

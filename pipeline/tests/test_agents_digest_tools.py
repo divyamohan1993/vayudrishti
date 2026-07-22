@@ -104,3 +104,45 @@ def test_all_eight_tools_registered():
         "get_fires_upwind",
     }
     assert len(tools.TOOL_SCHEMAS) == 8
+
+
+def test_tool_get_fires_upwind_cites_real_clusters(artifacts):
+    ctx = tools.ToolContext(artifacts=artifacts, city="delhi")
+    out = tools.execute(ctx, "get_fires_upwind", {})
+    assert out["available"] and len(out["clusters"]) == 2
+    assert out["clusters"][0]["cluster_id"] == "delhi_fc0"
+    # Every fire ref resolves against fires.json (citable by construction).
+    for cl in out["clusters"]:
+        for ref in cl["refs"]:
+            assert (
+                resolver.resolve(artifacts[ref["artifact"]], ref["path"], ref["artifact"])
+                == ref["value"]
+            )
+
+
+def test_tool_get_fires_upwind_quiet_window(artifacts):
+    artifacts["fires"]["clusters"] = []  # off-season: no active fires
+    ctx = tools.ToolContext(artifacts=artifacts, city="delhi")
+    out = tools.execute(ctx, "get_fires_upwind", {})
+    assert out["available"] and out["clusters"] == []
+
+
+def test_digest_upwind_fires_refs_resolve(artifacts):
+    d = digest.build_digest(artifacts, "delhi")
+    uf = d["upwind_fires"]
+    assert uf and len(uf["clusters"]) == 2
+    for cl in uf["clusters"]:
+        for ref in cl["refs"]:
+            assert (
+                resolver.resolve(artifacts[ref["artifact"]], ref["path"], ref["artifact"])
+                == ref["value"]
+            )
+
+
+def test_fires_ref_resolves_by_predicate(artifacts):
+    assert (
+        resolver.resolve(
+            artifacts["fires"], "fires.clusters[cluster_id=delhi_fc0].frp_total", "fires"
+        )
+        == 128.4
+    )

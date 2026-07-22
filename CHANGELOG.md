@@ -15,7 +15,9 @@ All notable changes to VayuDrishti are recorded here. Format follows
     calling), the deterministic dotted-path evidence resolver, eight read-only
     artifact tools, the compound-risk digest, and the four-role loop (Situation
     Analyst, Causal Strategist, Action Drafter, Adversarial Verifier) behind a
-    bounded call budget with a two-repair gate.
+    bounded call budget with a two-repair gate. `get_fires_upwind` cites the
+    observed upwind FIRMS clusters published at `{city}/fires.json` (vayu-data) as
+    verified evidence, degrading cleanly in the off-season.
   - `vayu briefs --city X`: builds verified briefs from published artifacts; any
     model failure keeps the previous briefs (stale banner) and exits zero, never
     blocking publish. A publish-time gate greps every emitted file for `</think>`

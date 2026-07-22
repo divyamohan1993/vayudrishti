@@ -38,6 +38,7 @@ RESOLVABLE_ARTIFACTS: tuple[str, ...] = (
     "ledger",
     "interventions",
     "receipts",
+    "fires",
 )
 
 AGENT_ROLES: tuple[str, ...] = (

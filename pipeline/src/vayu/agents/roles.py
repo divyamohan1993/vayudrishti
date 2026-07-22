@@ -357,9 +357,12 @@ def analyst_user(digest: dict[str, Any]) -> str:
     return (
         f"City: {digest.get('city')}. "
         f"Active GRAP stage: {_json(digest.get('active_grap_stage'))}.\n"
+        f"Upwind fire clusters (city-level, refs citable; may be empty in the off-season): "
+        f"{_json(digest.get('upwind_fires'))}.\n"
         f"Compound-risk digest ({digest.get('candidate_count', 0)} candidate wards, each signal "
         f"carries its resolvable ref):\n{_json(digest.get('candidates'))}\n\n"
-        "Identify the compound emerging risks and call submit_situations."
+        "Identify the compound emerging risks (e.g. a forecast band crossing aligned with an "
+        "upwind fire cluster) and call submit_situations."
     )
 
 
