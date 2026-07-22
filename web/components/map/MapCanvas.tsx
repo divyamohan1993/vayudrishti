@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { MapboxOverlay } from "@deck.gl/mapbox";
-import { GeoJsonLayer } from "@deck.gl/layers";
+import { GeoJsonLayer, TextLayer } from "@deck.gl/layers";
 import type { Layer } from "@deck.gl/core";
-import type { WardFC } from "@/lib/geo";
+import { geometryCentroid, type WardFC } from "@/lib/geo";
 import type { WardView } from "@/lib/wardView";
 import { AQI_RGB } from "@/lib/aqi";
 import type { SatelliteLayer } from "@/lib/store";
@@ -61,9 +61,19 @@ export default function MapCanvas({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const overlayRef = useRef<MapboxOverlay | null>(null);
+
+  // Ward centroids for the AQI-value labels (a non-colour cue on zoom-in).
+  const centroids = useMemo(
+    () =>
+      fc.features
+        .map((f) => ({ id: f.properties.ward_id, pos: geometryCentroid(f.geometry) }))
+        .filter((c): c is { id: string; pos: [number, number] } => c.pos !== null),
+    [fc],
+  );
+
   // Latest values for imperative handlers without re-creating the map.
-  const state = useRef({ viewById, satellite, selectedWard, roads, onHover, onSelect });
-  state.current = { viewById, satellite, selectedWard, roads, onHover, onSelect };
+  const state = useRef({ viewById, satellite, selectedWard, roads, centroids, onHover, onSelect });
+  state.current = { viewById, satellite, selectedWard, roads, centroids, onHover, onSelect };
 
   // Create map once.
   useEffect(() => {
@@ -90,6 +100,10 @@ export default function MapCanvas({
     map.on("load", () => {
       updateOverlay();
       updateGibs();
+    });
+    // Re-evaluate the zoom-gated value labels when zoom settles.
+    map.on("zoomend", () => {
+      if (mapRef.current?.isStyleLoaded()) updateOverlay();
     });
 
     return () => {
@@ -152,6 +166,29 @@ export default function MapCanvas({
           lineWidthUnits: "pixels",
           lineWidthMinPixels: 0.5,
           parameters: { depthTest: false },
+        }),
+      );
+    }
+
+    // AQI value labels once zoomed in: a non-colour cue so the map view never
+    // relies on colour alone (spec §7). Kept off at overview zoom to avoid clutter.
+    const zoom = mapRef.current?.getZoom() ?? 0;
+    if (zoom >= 11) {
+      const labelData = state.current.centroids.filter((c) => vb.has(c.id));
+      layers.push(
+        new TextLayer<{ id: string; pos: [number, number] }>({
+          id: "ward-values",
+          data: labelData,
+          getPosition: (c) => c.pos,
+          getText: (c) => String(Math.round(vb.get(c.id)!.subindex)),
+          getSize: 12,
+          getColor: [244, 239, 228, 240],
+          outlineWidth: 2,
+          outlineColor: [5, 11, 13, 255],
+          fontSettings: { sdf: true },
+          getTextAnchor: "middle",
+          getAlignmentBaseline: "center",
+          updateTriggers: { getText: [vb] },
         }),
       );
     }

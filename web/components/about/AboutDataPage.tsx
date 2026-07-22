@@ -120,6 +120,19 @@ export function AboutDataPage() {
                 </div>
               )}
             </div>
+            {al.data.audit && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 border-t pt-3" style={{ borderColor: "var(--line)" }}>
+                <Badge tone={al.data.audit.passed ? "good" : "warn"}>
+                  {al.data.audit.passed ? "independently audited" : "audit failed"}
+                </Badge>
+                {al.data.audit.refs_checked != null && (
+                  <span className="text-xs text-ink-mute">
+                    {al.data.audit.refs_checked} evidence refs re-resolved
+                    {al.data.audit.briefs_audited != null ? ` across ${al.data.audit.briefs_audited} briefs` : ""}
+                  </span>
+                )}
+              </div>
+            )}
           </Panel>
         </PanelBoundary>
       )}

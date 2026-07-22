@@ -494,6 +494,14 @@ export const agentLog = z.object({
   fixture: z.boolean().optional(),
   stale: z.boolean().optional(),
   model: z.string().optional(),
+  audit: z
+    .object({
+      passed: z.boolean().optional(),
+      briefs_audited: z.number().optional(),
+      refs_checked: z.number().optional(),
+      audited_at: z.string().optional(),
+    })
+    .optional(),
   runs: z.array(agentRun).optional(),
   totals: z
     .object({

@@ -11,11 +11,13 @@ import {
   attribution as attributionSchema,
   advisories as advisoriesSchema,
   briefs as briefsSchema,
+  replayIndex as replayIndexSchema,
 } from "@/lib/schemas";
 import type { ManifestCity, NowcastWard } from "@/lib/schemas";
-import { MANIFEST_URL, cityConventionUrl, dataUrl } from "@/lib/paths";
+import { DATA_BASE, MANIFEST_URL, cityConventionUrl, dataUrl } from "@/lib/paths";
 import { AQI_ORDER, AQI_STYLES } from "@/lib/aqi";
 import { LANGUAGE_NAMES } from "@/lib/i18n";
+import { formatISTDate } from "@/lib/format";
 import { cn } from "@/lib/cn";
 import { Panel } from "@/components/ui/Panel";
 import { PanelBoundary } from "@/components/ui/PanelBoundary";
@@ -32,6 +34,7 @@ import { EnforcementQueue } from "@/components/city/EnforcementQueue";
 import { ActionBriefs } from "@/components/city/ActionBriefs";
 import { AttributionShares } from "@/components/city/AttributionShares";
 import { AdvisoryCard } from "@/components/city/AdvisoryCard";
+import { ReplayControl } from "@/components/city/ReplayControl";
 
 const TIER_META: Record<string, { label: string; tone: "accent" | "neutral" | "outline"; note: string }> = {
   deep: { label: "Deep coverage", tone: "accent", note: "All surfaces, full validation, replay" },
@@ -59,8 +62,24 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
   const city: ManifestCity | undefined =
     manifestState.status === "ready" ? manifestState.data.cities.find((c) => c.id === cityId) : undefined;
 
-  const nowcastState = useResource(city ? dataUrl(city.files.nowcast) : null, nowcastSchema);
-  const forecastState = useResource(city ? dataUrl(city.files.forecast) : null, forecastSchema);
+  // Replay mode swaps the nowcast + forecast to an out-of-fold historical window.
+  const replayActive = useUIStore((s) => s.replayActive);
+  const replayDate = useUIStore((s) => s.replayDate);
+  const replayIndexState = useResource(
+    city?.files.replay_index ? dataUrl(city.files.replay_index) : null,
+    replayIndexSchema,
+  );
+  const inReplay = Boolean(replayActive && replayDate);
+  const replayFile = (file: string) => `${DATA_BASE}/${cityId}/replay/${replayDate}/${file}`;
+
+  const nowcastState = useResource(
+    city ? (inReplay ? replayFile("nowcast.json") : dataUrl(city.files.nowcast)) : null,
+    nowcastSchema,
+  );
+  const forecastState = useResource(
+    city ? (inReplay ? replayFile("forecast.json") : dataUrl(city.files.forecast)) : null,
+    forecastSchema,
+  );
   const enforcementState = useResource(city ? dataUrl(city.files.enforcement) : null, enforcementSchema);
   const attributionState = useResource(city ? dataUrl(city.files.attribution) : null, attributionSchema);
   const advisoriesState = useResource(city ? dataUrl(city.files.advisories) : null, advisoriesSchema);
@@ -136,10 +155,28 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
           </div>
           {tier && <p className="mt-1 text-xs text-ink-mute">{tier.note}</p>}
         </div>
-        {generatedAt && <DataAge generatedAt={generatedAt} fixture={isFixture} />}
+        <div className="flex flex-wrap items-center gap-3">
+          {replayIndexState.status === "ready" && <ReplayControl index={replayIndexState.data} />}
+          {generatedAt && <DataAge generatedAt={generatedAt} fixture={isFixture} />}
+        </div>
       </header>
 
-      {isFixture && generatedAt && <SampleDataBanner generatedAt={generatedAt} />}
+      {inReplay && replayDate && (
+        <div
+          role="status"
+          className="flex items-center gap-2 rounded-[var(--radius-sm)] border px-3 py-1.5 text-xs"
+          style={{ borderColor: "var(--line-airglow)", background: "var(--color-airglow-ghost)", color: "var(--color-airglow)" }}
+        >
+          <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-airglow)" }} />
+          <span className="font-semibold uppercase tracking-wide">Replay</span>
+          <span className="text-ink-soft">
+            Showing {formatISTDate(replayDate)} from out-of-fold predictions. The map and forecast are
+            historical, not live.
+          </span>
+        </div>
+      )}
+
+      {!inReplay && isFixture && generatedAt && <SampleDataBanner generatedAt={generatedAt} />}
 
       <div className="grid gap-4 lg:grid-cols-[1.55fr_1fr] xl:grid-cols-[2fr_1fr]">
         {/* Left: map, forecast, ward insight */}

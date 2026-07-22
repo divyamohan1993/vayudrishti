@@ -61,7 +61,10 @@ export function WardMap({
   const setHovered = useUIStore((s) => s.setHoveredWard);
   const setSatellite = useUIStore((s) => s.setSatellite);
 
-  const [view, setView] = useState<"map" | "patterns">("map");
+  // Default to the textured patterns view: it encodes AQI category with texture +
+  // label (never colour-only, spec §7). The WebGL map + GIBS is a one-click,
+  // opt-in enhancement.
+  const [view, setView] = useState<"map" | "patterns">("patterns");
   const useMap = view === "map" && webgl2 === true;
 
   const viewById = useMemo(() => buildWardView(wards, forecast, timelineH), [wards, forecast, timelineH]);
