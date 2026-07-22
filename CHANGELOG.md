@@ -1,0 +1,61 @@
+# Changelog
+
+All notable changes to VayuDrishti are recorded here. Format follows
+[Keep a Changelog](https://keepachangelog.com/en/1.1.0/); grouped by date.
+
+## [Unreleased]
+
+### Added
+
+- 2026-07-22 Operations foundation (vayu-ops):
+  - `refresh.yml`: scheduled data refresh every six hours plus manual dispatch.
+    Job-level demo-freeze skip via the `DEMO_FREEZE` repository variable. GEE
+    service-account key decoded to a restricted temp file with masked log output.
+    Runs `vayu publish` then a required `vayu gate` content check, then a secret
+    scan, then a first-party commit of only `web/public/data/**`. Every action
+    pinned to a full commit SHA. Sole permission is `contents: write`.
+  - `ci.yml`: parallel checks on every push and pull request. Secret scan with a
+    pinned gitleaks over tree and history, humanizer prose gate, pipeline lint,
+    type check, tests, and a must-fail step asserting the content gate rejects a
+    poisoned fixture, plus web lint and build. Language jobs skip until their
+    subtree lands.
+  - `scripts/secret-scan.sh`: query-string key detection, FIRMS path-key
+    detection, credential-format detection (PEM, Google, AWS, GitHub, JWT, and
+    NVIDIA `nvapi-` keys) over published JSON, the built `web/out` bundle, and the
+    tracked tree, plus a checksum-pinned gitleaks pass (config-driven allowlist)
+    over the tree and full history in CI. Verified against planted leaks and a
+    real gitleaks run (148 dependency false-positives to 0 with the config).
+  - `.gitleaks.toml`: allowlists dependencies, build output, the local `.env`,
+    and test fixtures so gitleaks flags only genuine leaks.
+  - `scripts/setup.sh`: one-time hook activation after clone.
+  - `.humanize-allow`: allowlists `robust` (a statistics term here) for the
+    humanizer.
+  - `.githooks/pre-push`: combined gate. A non-bypassable secret scan, then the
+    humanizer prose check with `HUMANIZE_SKIP=1` as the recorded escape hatch.
+    Wired through local `core.hooksPath`.
+  - `.githooks/commit-msg`: humanizer gate on the commit message itself, scanning
+    only the message. Same bypass and Node-free fallback.
+  - `.humanize/`: the humanizer guard and fixer that block unicode dashes and
+    AI-tell phrasing in shipped prose. Degrades to a dash-only check without Node.
+  - `web/vercel.json`: static-export deploy config with all security headers,
+    HSTS, `nosniff`, frame denial, referrer policy, a scoped permissions policy,
+    and a strict Content-Security-Policy that enumerates the GIBS tile hosts.
+  - `.env.example`: all source keys with registration links, including
+    `NVIDIA_API_KEY` for the Nemotron reasoning agents, the two GEE credential
+    paths, `GEE_PROJECT`, and the authoritative `VAYU_WEB_DATA_DIR` and
+    `VAYU_DATA_DIR` paths.
+  - `.gitattributes`: forces LF on scripts, hooks, and CI files so Windows
+    checkouts do not break shell scripts on Linux runners.
+  - `README.md`: leads with the Intervention Ledger, then the platform, the
+    reasoning-agent briefs, and the receipts.
+  - `docs/architecture.md`: system diagram and the security, refresh, Ledger, and
+    reasoning-agent data flows.
+  - `docs/demo-video-script.md`: three-minute script, Ledger first.
+
+### Notes
+
+- Metric placeholders in the README and demo script are filled at integration
+  from `receipts.json`, `interventions.json`, and `ledger.json`. No invented
+  numbers ship.
+- Security header ownership sits entirely in `web/vercel.json`; the Next.js config
+  emits none, since a static export ignores framework headers.
