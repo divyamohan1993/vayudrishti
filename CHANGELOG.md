@@ -7,6 +7,24 @@ All notable changes to VayuDrishti are recorded here. Format follows
 
 ### Added
 
+- 2026-07-23 Agentic Actionable-Inference layer (spec 14, vayu-agents):
+  - `config/schemas/briefs.schema.json` + `agentlog.schema.json`: the Action-Brief
+    envelope (verified, evidence-cited) and the redacted transparency trace, frozen
+    and validated. A `brief_type` field carries the spec 15 Depth-Pack types.
+  - `pipeline/vayu/agents/`: the Nemotron NIM client (thinking-mode trace parse, tool
+    calling), the deterministic dotted-path evidence resolver, eight read-only
+    artifact tools, the compound-risk digest, and the four-role loop (Situation
+    Analyst, Causal Strategist, Action Drafter, Adversarial Verifier) behind a
+    bounded call budget with a two-repair gate.
+  - `vayu briefs --city X`: builds verified briefs from published artifacts; any
+    model failure keeps the previous briefs (stale banner) and exits zero, never
+    blocking publish. A publish-time gate greps every emitted file for `</think>`
+    and NVIDIA key material.
+  - Sample `briefs.json` + `agentlog.json` published as fixtures for the web panel.
+  - Every number in a brief resolves against a published artifact or its ref is
+    pruned; the point effect and its confidence interval are grounded from the
+    Intervention Ledger row. Verified live against Nemotron.
+
 - 2026-07-23 Scientific Depth Pack alignment (spec v5, vayu-ops):
   - `.env.example`: optional expansion slots `GEMS_API_CREDENTIALS` (NIER),
     `MOSDAC_CREDENTIALS` (INSAT), and `AIRNOW_API_KEY` (embassy-validation
