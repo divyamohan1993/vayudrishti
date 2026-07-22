@@ -47,6 +47,14 @@ def _ward_centroids(city: str) -> dict[str, tuple[float, float, str]]:
     return out
 
 
+def _latest_covered(df: pd.DataFrame, min_stations: int = 2) -> pd.Timestamp:
+    """Latest hour with at least ``min_stations`` PM2.5 observations (live data can lag,
+    especially for sparse-network cities), so lag0 anchors on a well-covered hour."""
+    counts = df.dropna(subset=["pm25"]).groupby("ts_utc")["station_id"].nunique()
+    ok = counts[counts >= min_stations]
+    return ok.index.max() if len(ok) else df["ts_utc"].max()
+
+
 def _recent_history(df: pd.DataFrame, origin, centroids: dict, hours: int = 26) -> dict[str, dict]:
     ids = list(centroids)
     clat = np.array([centroids[w][0] for w in ids])
@@ -55,7 +63,7 @@ def _recent_history(df: pd.DataFrame, origin, centroids: dict, hours: int = 26) 
     for off in range(hours):
         t = origin - pd.Timedelta(hours=off)
         cur = df[df["ts_utc"] == t].dropna(subset=["pm25"])
-        if len(cur) >= 2:
+        if len(cur) >= 1:  # single-station IDW is a uniform fill; still a valid anchor
             vals = idw_predict(cur["lat"].to_numpy(), cur["lon"].to_numpy(), cur["pm25"].to_numpy(), clat, clon)
             for i, w in enumerate(ids):
                 hist[w][off] = float(vals[i])
@@ -110,7 +118,7 @@ def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, origin=N
     parquet (historical replay targets) instead of the Open-Meteo forecast endpoint;
     ``models`` reuses pre-trained per-horizon models (replay trains once, predicts many dates)."""
     df = load_feature_store(city)
-    origin = origin if origin is not None else df["ts_utc"].max()
+    origin = origin if origin is not None else _latest_covered(df)
     gen = utc_iso_z(now_utc())
     cfg = load_city(city)
     log.info("forecast_pub.start", city=city, origin=str(origin))
@@ -130,8 +138,8 @@ def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, origin=N
     wards = []
     for ward_id, (lat, lon, name) in centroids.items():
         h_off = hist.get(ward_id, {})
-        if sum(1 for v in h_off.values() if np.isfinite(v)) < 6:
-            continue  # not enough recent history to forecast this ward
+        if not any(np.isfinite(v) for v in h_off.values()):
+            continue  # no recent history at all for this ward
         series = []
         for horizon in HORIZONS:
             feat = _row(h_off, origin, horizon, meteo, frp)
