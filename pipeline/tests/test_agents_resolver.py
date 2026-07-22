@@ -146,11 +146,12 @@ def test_make_ref_unresolvable_raises(artifacts):
 # ---------------------------------------------------------------- verify_brief
 
 
-def test_verify_good_brief_overwrites_ground_truth(artifacts, good_brief):
-    good_brief["evidence_refs"][0]["value"] = 999.0  # model asserted wrong-but-close? no, far off
+def test_verify_prunes_mismatched_ref_keeps_brief(artifacts, good_brief):
+    good_brief["evidence_refs"][0]["value"] = 999.0  # fabricated value -> pruned, not fatal
     res = resolver.verify_brief(artifacts, good_brief)
-    assert res.ok is False  # 999 vs 412 is a fabrication -> rejected
-    assert any("!= resolved" in e for e in res.errors)
+    assert res.ok  # brief survives on its two other good refs
+    assert len(res.brief["evidence_refs"]) == 2  # the fabricated ref was dropped
+    assert any("!= resolved" in p for p in res.pruned)
 
 
 def test_verify_good_brief_passes_and_grounds(artifacts, good_brief):
@@ -161,7 +162,7 @@ def test_verify_good_brief_passes_and_grounds(artifacts, good_brief):
     assert res.brief["expected_effect"]["ugm3"] == -18.0
 
 
-def test_verify_unresolvable_ref_rejected(artifacts, good_brief):
+def test_verify_prunes_unresolvable_ref_keeps_brief(artifacts, good_brief):
     good_brief["evidence_refs"].append(
         {
             "label": "bogus",
@@ -172,8 +173,18 @@ def test_verify_unresolvable_ref_rejected(artifacts, good_brief):
         }
     )
     res = resolver.verify_brief(artifacts, good_brief)
-    assert not res.ok
-    assert any("ghost" in e for e in res.errors)
+    assert res.ok  # the three real refs remain
+    assert len(res.brief["evidence_refs"]) == 3
+    assert any("ghost" in p for p in res.pruned)
+
+
+def test_verify_all_refs_bad_fails(artifacts, good_brief):
+    for ref in good_brief["evidence_refs"]:
+        ref["artifact"] = "forecast"
+        ref["path"] = "forecast.wards[ward_id=ghost].series[h=24].pm25_p90"
+    res = resolver.verify_brief(artifacts, good_brief)
+    assert not res.ok  # nothing resolvable left
+    assert any("no resolvable" in e for e in res.errors)
 
 
 def test_verify_basis_ref_mismatch_rejected(artifacts, good_brief):
@@ -185,6 +196,39 @@ def test_verify_basis_ref_mismatch_rejected(artifacts, good_brief):
     res = resolver.verify_brief(artifacts, good_brief)
     assert not res.ok
     assert any("basis" in e for e in res.errors)
+
+
+def test_verify_grounds_ci_from_basis_row(artifacts, good_brief):
+    # The drafter asserts an ungrounded CI; the resolver overwrites it from the ledger row so no
+    # CI number is ever left unverified (basis_ref points at effect_ugm3, CI comes from siblings).
+    good_brief["expected_effect"]["ci_low"] = -22.0
+    good_brief["expected_effect"]["ci_high"] = -14.0
+    res = resolver.verify_brief(artifacts, good_brief)
+    assert res.ok, res.errors
+    assert res.brief["expected_effect"]["ugm3"] == -18.0
+    assert res.brief["expected_effect"]["ci_low"] == -31.0   # grounded from effect_ci_low
+    assert res.brief["expected_effect"]["ci_high"] == -6.0   # grounded from effect_ci_high
+
+
+def test_verify_basis_ref_as_effect_row(artifacts, good_brief):
+    good_brief["expected_effect"]["basis_ref"] = "ledger.wards[ward_id=delhi_042]"
+    res = resolver.verify_brief(artifacts, good_brief)
+    assert res.ok, res.errors
+    assert res.brief["expected_effect"]["ugm3"] == -18.0
+    assert res.brief["expected_effect"]["ci_low"] == -31.0
+
+
+def test_verify_keeps_valid_ledger_ref(artifacts, good_brief):
+    good_brief["ledger_ref"] = {"stage_transition": "GRAP-II to GRAP-III"}  # real
+    res = resolver.verify_brief(artifacts, good_brief)
+    assert res.brief["ledger_ref"] == {"stage_transition": "GRAP-II to GRAP-III"}
+
+
+def test_verify_drops_garbage_ledger_ref(artifacts, good_brief):
+    good_brief["ledger_ref"] = {"scenario": "ban_open_biomass_burning), "}  # not a real scenario
+    res = resolver.verify_brief(artifacts, good_brief)
+    assert res.ok  # brief still valid
+    assert "ledger_ref" not in res.brief  # garbage linkage dropped
 
 
 def test_verify_briefs_partitions_kept_and_dropped(artifacts, good_brief):
@@ -210,7 +254,8 @@ def test_verify_briefs_partitions_kept_and_dropped(artifacts, good_brief):
 def test_missing_artifact_makes_ref_unresolvable(good_brief):
     res = resolver.verify_brief({}, good_brief)  # no artifacts loaded
     assert not res.ok
-    assert any("not published" in e for e in res.errors)
+    assert any("no resolvable" in e for e in res.errors)
+    assert any("not published" in p for p in res.pruned)
 
 
 # ---------------------------------------------------------------- disk loading

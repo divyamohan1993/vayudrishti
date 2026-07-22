@@ -228,72 +228,154 @@ class BriefVerification:
     ok: bool
     brief: dict[str, Any]
     errors: list[str] = field(default_factory=list)
+    pruned: list[str] = field(default_factory=list)
 
 
-def _infer_artifact(path: str) -> str:
-    return parse_path(path)[0][1]
+def _stage_transitions(artifacts: dict[str, Any]) -> set[str]:
+    out: set[str] = set()
+    for e in (artifacts.get("interventions") or {}).get("effects", []):
+        if e.get("stage_transition"):
+            out.add(e["stage_transition"])
+    for w in (artifacts.get("ledger") or {}).get("wards", []):
+        for bs in w.get("by_stage") or []:
+            if bs.get("stage_transition"):
+                out.add(bs["stage_transition"])
+    return out
+
+
+def _ledger_scenarios(artifacts: dict[str, Any]) -> set[str]:
+    return {
+        c.get("scenario")
+        for c in (artifacts.get("ledger") or {}).get("counterfactuals", [])
+        if c.get("scenario")
+    }
+
+
+def _prune_ledger_ref(artifacts: dict[str, Any], out: dict[str, Any]) -> None:
+    """Keep ledger_ref fields only if they name a REAL stage_transition / counterfactual
+    scenario; drop the field entirely if nothing matches (resolve-or-die, for the web slot)."""
+    lref = out.get("ledger_ref")
+    if not isinstance(lref, dict):
+        return
+    kept: dict[str, Any] = {}
+    if lref.get("stage_transition") in _stage_transitions(artifacts):
+        kept["stage_transition"] = lref["stage_transition"]
+    if lref.get("scenario") in _ledger_scenarios(artifacts):
+        kept["scenario"] = lref["scenario"]
+    if kept:
+        out["ledger_ref"] = kept
+    else:
+        out.pop("ledger_ref", None)
+
+
+def _first_number(row: dict[str, Any], keys: tuple[str, ...]) -> float | None:
+    for k in keys:
+        v = row.get(k)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            return float(v)
+    return None
+
+
+def _ground_effect(artifacts: dict[str, Any], basis: str, effect: dict[str, Any]) -> list[str]:
+    """Ground expected_effect (ugm3 + ci_low + ci_high) from the ledger/interventions effect
+    ROW that ``basis_ref`` points at. ``basis_ref`` may name the row itself or its effect
+    scalar; either way the point effect AND its confidence interval come from the same row, so
+    no CI number is ever left ungrounded. Returns fatal errors (empty on success)."""
+    try:
+        steps = parse_path(basis)
+    except ResolveError as exc:
+        return [f"expected_effect.basis_ref: unparseable ({exc})"]
+    art = steps[0][1]
+    if art not in artifacts:
+        return [f"expected_effect.basis_ref: artifact {art!r} not published"]
+    root = artifacts[art]
+    try:
+        target = _walk(root, steps[1:])
+    except ResolveError as exc:
+        return [f"expected_effect.basis_ref: {basis!r} -> {exc}"]
+
+    if isinstance(target, dict):
+        row: dict[str, Any] | None = target
+        point = _first_number(row, ("effect_ugm3", "ugm3"))
+    elif isinstance(target, (int, float)) and not isinstance(target, bool):
+        point = float(target)
+        try:
+            parent = _walk(root, steps[1:-1]) if len(steps) > 2 else root
+        except ResolveError:
+            parent = None
+        row = parent if isinstance(parent, dict) else None
+    else:
+        return ["expected_effect.basis_ref must resolve to an effect row or a number"]
+
+    if point is None:
+        return ["expected_effect.basis_ref: no effect value at basis"]
+    if not values_match(effect.get("ugm3"), point):
+        return [f"expected_effect.ugm3 {effect.get('ugm3')!r} != basis {point!r}"]
+    effect["ugm3"] = point
+
+    if row is not None:
+        lo = _first_number(row, ("effect_ci_low", "ci_low"))
+        hi = _first_number(row, ("effect_ci_high", "ci_high"))
+        if lo is not None:
+            effect["ci_low"] = lo
+        if hi is not None:
+            effect["ci_high"] = hi
+
+    lo, hi = effect.get("ci_low"), effect.get("ci_high")
+    if isinstance(lo, (int, float)) and isinstance(hi, (int, float)) and not (lo <= point <= hi):
+        return [f"expected_effect CI [{lo}, {hi}] does not bracket grounded effect {point}"]
+    return []
 
 
 def verify_brief(artifacts: dict[str, Any], brief: dict[str, Any]) -> BriefVerification:
-    """Resolve every evidence_ref (and basis_ref) of one brief against the loaded artifacts.
+    """Verify one brief against the loaded artifacts, PRUNING individual bad refs.
 
-    On success returns the brief with each ref/effect value overwritten by the resolved
-    ground truth. On any unresolvable or mismatched ref returns ok=False with reasons.
+    Policy (robust, and what "zero unverified claims published" actually requires): an
+    evidence_ref that does not resolve, or whose asserted value does not match the artifact,
+    is DROPPED (never published) rather than killing the whole brief. Surviving refs get their
+    value overwritten with the resolved ground truth. The brief FAILS (``ok=False``) only when
+    it has no resolvable evidence left, or its ``expected_effect.basis_ref`` (a load-bearing
+    numeric claim) does not resolve. ``pruned`` lists the dropped refs (non-fatal);
+    ``errors`` lists fatal reasons.
     """
     import copy
 
     out = copy.deepcopy(brief)
     errors: list[str] = []
+    pruned: list[str] = []
 
-    refs = out.get("evidence_refs") or []
-    if not refs:
-        errors.append("brief has no evidence_refs")
-    for idx, ref in enumerate(refs):
+    good_refs: list[dict[str, Any]] = []
+    for idx, ref in enumerate(out.get("evidence_refs") or []):
         artifact = ref.get("artifact")
         path = ref.get("path", "")
         if artifact not in artifacts:
-            errors.append(f"evidence_refs[{idx}]: artifact {artifact!r} not published")
+            pruned.append(f"evidence_refs[{idx}]: artifact {artifact!r} not published")
             continue
         try:
             resolved = resolve(artifacts[artifact], path, expected_artifact=artifact)
         except ResolveError as exc:
-            errors.append(f"evidence_refs[{idx}]: {path!r} -> {exc}")
+            pruned.append(f"evidence_refs[{idx}]: {path!r} -> {exc}")
             continue
         if not values_match(ref.get("value"), resolved):
-            errors.append(
+            pruned.append(
                 f"evidence_refs[{idx}]: asserted {ref.get('value')!r} != resolved {resolved!r}"
             )
             continue
         ref["value"] = resolved  # publish ground truth
         ref["resolved"] = True
+        good_refs.append(ref)
+
+    out["evidence_refs"] = good_refs
+    if not good_refs:
+        errors.append("no resolvable evidence_refs remain")
 
     effect = out.get("expected_effect")
     if effect is not None:
-        basis = effect.get("basis_ref", "")
-        try:
-            art = _infer_artifact(basis)
-        except ResolveError as exc:
-            errors.append(f"expected_effect.basis_ref: unparseable ({exc})")
-            art = None
-        if art is not None:
-            if art not in artifacts:
-                errors.append(f"expected_effect.basis_ref: artifact {art!r} not published")
-            else:
-                try:
-                    resolved = resolve(artifacts[art], basis, expected_artifact=art)
-                except ResolveError as exc:
-                    errors.append(f"expected_effect.basis_ref: {basis!r} -> {exc}")
-                else:
-                    if not isinstance(resolved, (int, float)) or isinstance(resolved, bool):
-                        errors.append("expected_effect.basis_ref must resolve to a number")
-                    elif not values_match(effect.get("ugm3"), resolved):
-                        errors.append(
-                            f"expected_effect.ugm3 {effect.get('ugm3')!r} != basis {resolved!r}"
-                        )
-                    else:
-                        effect["ugm3"] = float(resolved)  # ground truth
+        errors.extend(_ground_effect(artifacts, effect.get("basis_ref", ""), effect))
 
-    return BriefVerification(ok=not errors, brief=out, errors=errors)
+    _prune_ledger_ref(artifacts, out)
+
+    return BriefVerification(ok=not errors, brief=out, errors=errors, pruned=pruned)
 
 
 @dataclass(slots=True)

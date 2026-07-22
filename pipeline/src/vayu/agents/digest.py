@@ -36,7 +36,8 @@ def _ref(artifacts: dict[str, Any], artifact: str, path: str, label: str) -> dic
         return None
 
 
-def _active_grap_stage(interventions: dict[str, Any] | None) -> dict[str, Any] | None:
+def _active_grap_stage(artifacts: dict[str, Any]) -> dict[str, Any] | None:
+    interventions = artifacts.get("interventions")
     if not interventions:
         return None
     calendar = interventions.get("calendar") or []
@@ -44,7 +45,14 @@ def _active_grap_stage(interventions: dict[str, Any] | None) -> dict[str, Any] |
         return None
     # Latest-starting stage is the operative one for a nowcast-time digest.
     latest = max(calendar, key=lambda e: e.get("start_utc", ""))
-    return {"stage": latest.get("stage"), "start_utc": latest.get("start_utc")}
+    stage = latest.get("stage")
+    ref = _ref(
+        artifacts,
+        "interventions",
+        f"interventions.calendar[stage={stage}].start_utc",
+        f"active stage {stage} start",
+    )
+    return {"stage": stage, "start_utc": latest.get("start_utc"), "ref": ref}
 
 
 def _nowcast_by_ward(nowcast: dict[str, Any] | None) -> dict[str, dict[str, Any]]:
@@ -93,6 +101,8 @@ def build_digest(artifacts: dict[str, Any], city: str) -> dict[str, Any]:
     enf = _enforcement_by_ward(artifacts.get("enforcement"))
     attr = _attribution_by_ward(artifacts.get("attribution"))
     led = _ledger_by_ward(artifacts.get("ledger"))
+    grap = _active_grap_stage(artifacts)
+    grap_ref = grap.get("ref") if grap else None
 
     candidates: list[dict[str, Any]] = []
     fwards = (forecast or {}).get("wards", []) if forecast else []
@@ -156,16 +166,34 @@ def build_digest(artifacts: dict[str, Any], city: str) -> dict[str, Any]:
             _, item = enf[ward_id]
             entry["enforcement"] = {
                 "priority_score": item.get("priority_score"),
-                "persistence_days": item.get("persistence_days")
-                or (item.get("evidence") or {}).get("persistence_days"),
+                "exceedance_pct": (item.get("evidence") or {}).get("exceedance_pct"),
+                "persistence_days": (item.get("evidence") or {}).get("persistence_days"),
                 "action": item.get("action"),
                 "source_label": item.get("source_label"),
-                "ref": _ref(
-                    artifacts,
-                    "enforcement",
-                    f"enforcement.ranked[ward_id={ward_id}].priority_score",
-                    f"enforcement priority, {ward_id}",
-                ),
+                "refs": [
+                    r
+                    for r in (
+                        _ref(
+                            artifacts,
+                            "enforcement",
+                            f"enforcement.ranked[ward_id={ward_id}].priority_score",
+                            f"enforcement priority, {ward_id}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "enforcement",
+                            f"enforcement.ranked[ward_id={ward_id}].evidence.exceedance_pct",
+                            f"exceedance %, {ward_id}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "enforcement",
+                            f"enforcement.ranked[ward_id={ward_id}].evidence.persistence_days",
+                            f"persistence days, {ward_id}",
+                        ),
+                    )
+                    if r
+                ],
             }
             score += float(item.get("priority_score") or 0.0)
 
@@ -190,13 +218,47 @@ def build_digest(artifacts: dict[str, Any], city: str) -> dict[str, Any]:
                 "effect_ugm3": led[ward_id].get("effect_ugm3"),
                 "effect_ci_low": led[ward_id].get("effect_ci_low"),
                 "effect_ci_high": led[ward_id].get("effect_ci_high"),
-                "ref": _ref(
-                    artifacts,
-                    "ledger",
-                    f"ledger.wards[ward_id={ward_id}].effect_ugm3",
-                    f"ledger causal effect, {ward_id}",
-                ),
+                # basis_ref for expected_effect: the whole effect row grounds ugm3 + CI.
+                "basis_ref": f"ledger.wards[ward_id={ward_id}]",
+                "refs": [
+                    r
+                    for r in (
+                        _ref(
+                            artifacts,
+                            "ledger",
+                            f"ledger.wards[ward_id={ward_id}].effect_ugm3",
+                            f"ledger causal effect, {ward_id}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "ledger",
+                            f"ledger.wards[ward_id={ward_id}].effect_ci_low",
+                            f"effect CI low, {ward_id}",
+                        ),
+                        _ref(
+                            artifacts,
+                            "ledger",
+                            f"ledger.wards[ward_id={ward_id}].effect_ci_high",
+                            f"effect CI high, {ward_id}",
+                        ),
+                    )
+                    if r
+                ],
             }
+
+        # A single flat menu of resolvable refs; the model must cite ONLY from here.
+        citable: list[dict[str, Any]] = [p["ref"] for p in fc_points if p.get("ref")]
+        if entry["nowcast"] and entry["nowcast"].get("ref"):
+            citable.append(entry["nowcast"]["ref"])
+        if entry["enforcement"]:
+            citable.extend(entry["enforcement"].get("refs", []))
+        if entry["attribution"] and entry["attribution"].get("ref"):
+            citable.append(entry["attribution"]["ref"])
+        if entry["ledger"]:
+            citable.extend(entry["ledger"].get("refs", []))
+        if grap_ref:
+            citable.append(grap_ref)
+        entry["citable_refs"] = citable
 
         entry["compound_score"] = round(score, 3)
         candidates.append(entry)
@@ -206,7 +268,7 @@ def build_digest(artifacts: dict[str, Any], city: str) -> dict[str, Any]:
 
     return {
         "city": city,
-        "active_grap_stage": _active_grap_stage(artifacts.get("interventions")),
+        "active_grap_stage": grap,
         "candidate_count": len(candidates),
         "candidates": candidates,
         "available_artifacts": sorted(artifacts.keys()),

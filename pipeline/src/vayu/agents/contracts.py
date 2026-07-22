@@ -47,6 +47,10 @@ AGENT_ROLES: tuple[str, ...] = (
     "adversarial_verifier",
 )
 
+# Brief categories (spec 14/15). "action" is the default compound-risk brief; the others
+# are the Depth-Pack types that land after the core loop (same verifier discipline).
+BRIEF_TYPES: tuple[str, ...] = ("action", "trigger-watch", "plume-alert", "data-quality")
+
 _WARD_ID = r"^[a-z]+_[a-z0-9]+$"
 _BRIEF_ID = r"^[a-z0-9][a-z0-9-]{1,63}$"
 _LANG = r"^[a-z]{2}$"
@@ -79,10 +83,17 @@ def _role(value: str) -> str:
     return value
 
 
+def _brief_type(value: str) -> str:
+    if value not in BRIEF_TYPES:
+        raise ValueError(f"{value!r} is not a valid brief_type")
+    return value
+
+
 IsoDateTime = Annotated[str, AfterValidator(_iso_dt)]
 ActionCode = Annotated[str, AfterValidator(_action_code)]
 Artifact = Annotated[str, AfterValidator(_artifact)]
 Role = Annotated[str, AfterValidator(_role)]
+BriefType = Annotated[str, AfterValidator(_brief_type)]
 
 # A resolved value may be a number, string, boolean, or null. bool precedes int so a
 # JSON boolean is not coerced to 0/1.
@@ -145,6 +156,7 @@ class Verifier(_Strict):
 
 class Brief(_Strict):
     id: str = Field(pattern=_BRIEF_ID)
+    brief_type: BriefType | None = None
     headline: CleanStr = Field(min_length=1, max_length=160)
     situation: CleanStr = Field(min_length=1, max_length=1000)
     action: CleanStr = Field(min_length=1, max_length=600)

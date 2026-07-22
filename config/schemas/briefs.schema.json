@@ -51,6 +51,11 @@
             "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
             "description": "Stable slug id, e.g. delhi-2025-11-08-nw-stubble-01."
           },
+          "brief_type": {
+            "type": "string",
+            "enum": ["action", "trigger-watch", "plume-alert", "data-quality"],
+            "description": "Brief category (spec 14/15). 'action' = compound-risk action brief (default). 'trigger-watch' = P(GRAP stage crossing) + ledger effect + pre-positioning window (spec 15.5). 'plume-alert' = FIRMS forward-advection ETA + affected wards (spec 15.2). 'data-quality' = anomalous station surfaced with evidence (spec 15.6). All share the same evidence_refs verifier discipline. Absent => 'action'."
+          },
           "headline": {
             "type": "string",
             "minLength": 1,

@@ -26,21 +26,16 @@ def test_digest_active_grap_stage(artifacts):
 def test_digest_refs_resolve_by_construction(artifacts):
     d = digest.build_digest(artifacts, "delhi")
     top = d["candidates"][0]
-    # Every ref the digest attached must resolve against the same artifacts.
-    for ref in top["forecast"]:
-        assert ref["ref"] is not None
-        assert (
-            resolver.resolve(
-                artifacts[ref["ref"]["artifact"]], ref["ref"]["path"], ref["ref"]["artifact"]
-            )
-            == ref["ref"]["value"]
+    # The whole citable_refs menu must resolve against the same artifacts (nothing invented).
+    assert top["citable_refs"], "top candidate should carry citable refs"
+    for r in top["citable_refs"]:
+        assert resolver.resolve(artifacts[r["artifact"]], r["path"], r["artifact"]) == r["value"]
+    # The ledger basis_ref (a row path) resolves as a container for effect grounding.
+    if top["ledger"]:
+        row = resolver._walk(
+            artifacts["ledger"], resolver.parse_path(top["ledger"]["basis_ref"])[1:]
         )
-    for key in ("nowcast", "enforcement", "attribution", "ledger"):
-        r = top[key] and top[key].get("ref")
-        if r:
-            assert (
-                resolver.resolve(artifacts[r["artifact"]], r["path"], r["artifact"]) == r["value"]
-            )
+        assert isinstance(row, dict) and "effect_ugm3" in row
 
 
 def test_digest_partial_artifacts_no_crash():
