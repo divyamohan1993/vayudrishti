@@ -152,7 +152,7 @@ flowchart LR
 | A8 | Live layer needs one free key (data.gov.in preferred); until then archive-latest labeled with data age | user step |
 | A9 | Finale ~Aug 2 (verify on Unstop) | user |
 | A10 | Ward vintage best-available, noted on /about-data; BMC 24 vs BBMP 198 granularity noted | proceed |
-| A11 | Basemap = self-hosted PMTiles (OSM tile policy) | new |
+| A11 | Basemap REVISED 2026-07-23: dark data-canvas (no street tile stack) + self-hosted static GeoJSON of major roads + ward labels for orientation + GIBS overlays. Rationale: policy-clean, fully offline, zero tile tooling risk; PMTiles dropped (pmtiles CLI unavailable, marginal value) | ratified |
 | A12 | Single-winter training window; claims scoped, stated on /receipts | new |
 | A14 | Next pinned to 15 (not 16): ecosystem-proven with deck.gl+MapLibre+static export; Turbopack map-stack risk not worth it time-boxed; reversible one-liner | ratified 2026-07-22 |
 
