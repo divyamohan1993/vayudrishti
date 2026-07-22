@@ -160,3 +160,44 @@ def load_satellite_daily(cache_dir: Path) -> pd.DataFrame:
     if not cache.exists():
         return pd.DataFrame(columns=["date", "station_id", *SAT_COLS])
     return pd.read_parquet(cache)
+
+
+WORLDPOP_COLLECTION = "WorldPop/GP/100m/pop"
+
+
+def ward_population(wards_geojson: dict, year: int = 2020) -> dict[str, float]:
+    """Sum WorldPop 100m population per ward polygon via GEE. {} if EE off.
+
+    Returns {ward_id: population}. Vintage = ``year`` (documented on /about-data).
+    """
+    if not init_ee():
+        log.warning("gee.worldpop_skip", reason="ee_unavailable")
+        return {}
+    import ee
+
+    try:
+        pop = (
+            ee.ImageCollection(WORLDPOP_COLLECTION)
+            .filter(ee.Filter.eq("year", year))
+            .filter(ee.Filter.eq("country", "IND"))
+            .mosaic()
+        )
+        feats = [
+            ee.Feature(ee.Geometry(f["geometry"]), {"ward_id": f["properties"]["ward_id"]})
+            for f in wards_geojson["features"]
+        ]
+        fc = ee.FeatureCollection(feats)
+        reduced = pop.reduceRegions(
+            collection=fc, reducer=ee.Reducer.sum(), scale=100
+        ).getInfo()
+        out: dict[str, float] = {}
+        for f in reduced["features"]:
+            props = f["properties"]
+            val = props.get("sum")
+            if val is not None:
+                out[props["ward_id"]] = round(float(val), 1)
+        log.info("gee.worldpop_done", wards=len(out), year=year)
+        return out
+    except Exception as exc:  # noqa: BLE001
+        log.warning("gee.worldpop_error", error=str(exc)[:160])
+        return {}

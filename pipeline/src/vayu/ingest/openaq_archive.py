@@ -97,7 +97,7 @@ def _is_current_month(year: int, month: int) -> bool:
 
 
 def backfill_station_month(
-    client, pool: ThreadPoolExecutor, location_id: int, year: int, month: int, cache_dir: Path
+    client, location_id: int, year: int, month: int, cache_dir: Path
 ) -> pd.DataFrame | None:
     cache = cache_dir / f"loc{location_id}_{year}{month:02d}.parquet"
     if cache.exists() and not _is_current_month(year, month):
@@ -105,12 +105,13 @@ def backfill_station_month(
     keys = _list_month_keys(client, location_id, year, month)
     if not keys:
         return None
-    dfs = [df for df in pool.map(lambda k: _fetch_csv(client, k), keys) if df is not None]
+    dfs = [_fetch_csv(client, k) for k in keys]
     if not dfs:
         return None
     hourly = _to_hourly(pd.concat(dfs, ignore_index=True))
-    cache.parent.mkdir(parents=True, exist_ok=True)
-    hourly.to_parquet(cache, index=False)
+    if not _is_current_month(year, month):  # keep the live month refetchable
+        cache.parent.mkdir(parents=True, exist_ok=True)
+        hourly.to_parquet(cache, index=False)
     return hourly
 
 
@@ -119,19 +120,36 @@ def backfill_city(
     months: list[tuple[int, int]],
     cache_dir: Path,
     *,
-    max_workers: int = 32,
+    max_workers: int = 24,
 ) -> pd.DataFrame:
-    """Backfill all stations x months into an hourly DataFrame (cached per part)."""
+    """Backfill all stations x months into an hourly DataFrame (cached per part).
+
+    Station-months run concurrently on a shared thread-safe (UNSIGNED) client; each
+    worker lists its month then fetches that month's day-files. Cached months are
+    read from disk, so reruns skip finished work.
+    """
     client = _client()
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    tasks = [(loc, y, m) for loc in location_ids for (y, m) in months]
+
+    def _work(task: tuple[int, int, int]) -> pd.DataFrame | None:
+        loc, year, month = task
+        try:
+            return backfill_station_month(client, loc, year, month, cache_dir)
+        except Exception as exc:  # noqa: BLE001 - one bad month must not kill the backfill
+            log.warning(
+                "openaq_archive.month_error",
+                loc=loc,
+                ym=f"{year}-{month:02d}",
+                error=type(exc).__name__,
+            )
+            return None
+
     frames: list[pd.DataFrame] = []
-    fetched_months = 0
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        for loc in location_ids:
-            for year, month in months:
-                df = backfill_station_month(client, pool, loc, year, month, cache_dir)
-                if df is not None and not df.empty:
-                    frames.append(df)
-                    fetched_months += 1
+        for df in pool.map(_work, tasks):
+            if df is not None and not df.empty:
+                frames.append(df)
     if not frames:
         log.warning("openaq_archive.empty", locations=len(location_ids), months=len(months))
         return pd.DataFrame(columns=["ts_utc", "station_id", "lat", "lon", *POLLUTANTS])
@@ -140,7 +158,7 @@ def backfill_city(
     log.info(
         "openaq_archive.done",
         locations=len(location_ids),
-        station_months=fetched_months,
+        station_months=len(frames),
         rows=len(out),
         first=str(out["ts_utc"].min()),
         last=str(out["ts_utc"].max()),

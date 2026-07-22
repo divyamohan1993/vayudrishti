@@ -1,0 +1,555 @@
+[
+  {
+    "location_id": 5593,
+    "name": "Pimpleshwar Mandir, Thane - MPCB",
+    "lat": 19.192056,
+    "lon": 72.9585188,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2018-03-09T05:30:00Z",
+    "last": "2022-10-16T11:45:00Z"
+  },
+  {
+    "location_id": 6927,
+    "name": "Colaba, Mumbai - MPCB",
+    "lat": 18.91,
+    "lon": 72.82,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-28T05:30:00Z",
+    "last": "2026-06-22T00:15:00Z"
+  },
+  {
+    "location_id": 6945,
+    "name": "Kurla, Mumbai - MPCB",
+    "lat": 19.0863,
+    "lon": 72.8888,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-19T00:00:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 6948,
+    "name": "Chhatrapati Shivaji Intl. Airport (T2), Mumbai - MPCB",
+    "lat": 19.10078,
+    "lon": 72.87462,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-18T23:15:00Z",
+    "last": "2026-07-15T04:15:00Z"
+  },
+  {
+    "location_id": 6956,
+    "name": "Powai, Mumbai - MPCB",
+    "lat": 19.1375,
+    "lon": 72.915056,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-18T23:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 6959,
+    "name": "Siddharth Nagar-Worli, Mumbai - IITM",
+    "lat": 19.000083,
+    "lon": 72.813993,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-20T12:00:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 6965,
+    "name": "Borivali East, Mumbai - MPCB",
+    "lat": 19.227474,
+    "lon": 72.864394,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-20T16:00:00Z",
+    "last": "2026-07-22T18:00:00Z"
+  },
+  {
+    "location_id": 6967,
+    "name": "Sion, Mumbai - MPCB",
+    "lat": 19.047,
+    "lon": 72.8746,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-27T05:15:00Z",
+    "last": "2026-07-22T18:00:00Z"
+  },
+  {
+    "location_id": 6987,
+    "name": "Vile Parle West, Mumbai - MPCB",
+    "lat": 19.10861,
+    "lon": 72.83622,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2019-06-18T23:00:00Z",
+    "last": "2026-05-30T09:30:00Z"
+  },
+  {
+    "location_id": 7850,
+    "name": "Bandra, Mumbai - MPCB",
+    "lat": 19.0627,
+    "lon": 72.84614,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-01-09T00:15:00Z",
+    "last": "2021-12-24T04:45:00Z"
+  },
+  {
+    "location_id": 8039,
+    "name": "Mumbai",
+    "lat": 19.07283,
+    "lon": 72.88261,
+    "parameters": [
+      "pm25"
+    ],
+    "first": "2016-11-09T19:00:00Z",
+    "last": "2025-03-04T11:30:00Z"
+  },
+  {
+    "location_id": 11602,
+    "name": "Bandra Kurla Complex, Mumbai - IITM",
+    "lat": 19.053536000000005,
+    "lon": 72.84643,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-11-13T12:15:00Z",
+    "last": "2022-10-16T15:45:00Z"
+  },
+  {
+    "location_id": 11604,
+    "name": "Deonar, Mumbai - IITM",
+    "lat": 19.04946,
+    "lon": 72.923,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-11-13T12:15:00Z",
+    "last": "2022-10-16T15:45:00Z"
+  },
+  {
+    "location_id": 11606,
+    "name": "Borivali East, Mumbai - IITM",
+    "lat": 19.23241,
+    "lon": 72.86895,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25"
+    ],
+    "first": "2020-11-13T12:30:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 11611,
+    "name": "Malad West, Mumbai - IITM",
+    "lat": 19.19709,
+    "lon": 72.82204,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-11-13T12:15:00Z",
+    "last": "2026-07-22T17:30:00Z"
+  },
+  {
+    "location_id": 12024,
+    "name": "Chakala-Andheri East, Mumbai - IITM",
+    "lat": 19.11074,
+    "lon": 72.86084,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-12-08T09:00:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 12039,
+    "name": "Khindipada-Bhandup West, Mumbai - IITM",
+    "lat": 19.164394,
+    "lon": 72.928297,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-12-16T12:45:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 12040,
+    "name": "Mulund West, Mumbai - MPCB",
+    "lat": 19.175,
+    "lon": 72.9419,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-12-16T12:30:00Z",
+    "last": "2026-07-22T18:00:00Z"
+  },
+  {
+    "location_id": 12044,
+    "name": "Kandivali East, Mumbai - MPCB",
+    "lat": 19.2058,
+    "lon": 72.8682,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2020-12-16T12:30:00Z",
+    "last": "2026-04-18T05:45:00Z"
+  },
+  {
+    "location_id": 60661,
+    "name": "Siddharth Nagar-Worli, Mumbai - IITM",
+    "lat": 19.000083,
+    "lon": 72.813993,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25"
+    ],
+    "first": "2021-01-12T14:00:00Z",
+    "last": "2022-10-16T16:00:00Z"
+  },
+  {
+    "location_id": 3409322,
+    "name": "Pimpleshwar Mandir, Thane - MPCB",
+    "lat": 19.192056,
+    "lon": 72.9585188,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-21T18:00:00Z"
+  },
+  {
+    "location_id": 3409323,
+    "name": "Worli, Mumbai - MPCB",
+    "lat": 18.9936162,
+    "lon": 72.8128113,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:00:00Z"
+  },
+  {
+    "location_id": 3409328,
+    "name": "Bandra Kurla Complex, Mumbai - IITM",
+    "lat": 19.0627,
+    "lon": 72.84614,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-04-07T13:00:00Z",
+    "last": "2026-07-22T16:15:00Z"
+  },
+  {
+    "location_id": 3409329,
+    "name": "Deonar, Mumbai - IITM",
+    "lat": 19.04946,
+    "lon": 72.923,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409469,
+    "name": "Kasarvadavali, Thane - MPCB",
+    "lat": 19.26777,
+    "lon": 72.97182,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409472,
+    "name": "Upvan Fort, Thane - MPCB",
+    "lat": 19.222279,
+    "lon": 72.957979,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409479,
+    "name": "Mindspace-Malad West, Mumbai - MPCB",
+    "lat": 19.1878657,
+    "lon": 72.8304069,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T00:00:00Z"
+  },
+  {
+    "location_id": 3409482,
+    "name": "Bandra Kurla Complex, Mumbai - MPCB",
+    "lat": 19.065931,
+    "lon": 72.862131,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409483,
+    "name": "Chembur, Mumbai - MPCB",
+    "lat": 19.0364585,
+    "lon": 72.8954371,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409486,
+    "name": "Kherwadi_Bandra East, Mumbai - MPCB",
+    "lat": 19.0632143,
+    "lon": 72.8456324,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409510,
+    "name": "Byculla, Mumbai - BMC",
+    "lat": 18.9767,
+    "lon": 72.838,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409511,
+    "name": "Shivaji Nagar, Mumbai - BMC",
+    "lat": 19.060498,
+    "lon": 72.923356,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409512,
+    "name": "Kandivali West, Mumbai - BMC",
+    "lat": 19.215859,
+    "lon": 72.831718,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409513,
+    "name": "Sewri, Mumbai - BMC",
+    "lat": 19.000084,
+    "lon": 72.85673,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:45:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  },
+  {
+    "location_id": 3409514,
+    "name": "Ghatkopar, Mumbai - BMC",
+    "lat": 19.083694,
+    "lon": 72.920967,
+    "parameters": [
+      "co",
+      "no2",
+      "o3",
+      "pm10",
+      "pm25",
+      "so2"
+    ],
+    "first": "2025-02-18T20:15:00Z",
+    "last": "2026-07-22T18:15:00Z"
+  }
+]

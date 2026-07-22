@@ -97,3 +97,27 @@ def bake_wards(city: CityConfig, lineage: LineageLog | None = None) -> Path:
             rows=len(baked),
         )
     return out
+
+
+def add_ward_population(city: CityConfig, year: int = 2020) -> int:
+    """Add WorldPop population per ward into the published wards.geojson (spec 13).
+
+    Reads the baked wards.geojson, sums WorldPop 100m population per polygon via GEE,
+    writes it back as an optional `population` property. Returns wards populated (0 if
+    GEE is off; the geometry file is left untouched in that case).
+    """
+    from vayu.ingest.gee_extractor import ward_population
+
+    out = get_settings().resolved_web_data_dir / city.slug / "wards.geojson"
+    fc = json.loads(out.read_text(encoding="utf-8"))
+    pops = ward_population(fc, year=year)
+    if not pops:
+        log.warning("wards.population_skip", city=city.slug)
+        return 0
+    for feat in fc["features"]:
+        wid = feat["properties"].get("ward_id")
+        feat["properties"]["population"] = pops.get(wid)
+    out.write_text(json.dumps(fc, separators=(",", ":")), encoding="utf-8")
+    covered = sum(1 for f in fc["features"] if f["properties"].get("population") is not None)
+    log.info("wards.population", city=city.slug, populated=covered, year=year)
+    return covered

@@ -117,6 +117,13 @@ def fetch_city_fires(cfg: CityConfig, start: str | None, cache_dir: Path) -> pd.
         cur += timedelta(days=span)
 
     fires = pd.concat(frames, ignore_index=True) if frames else pd.DataFrame(columns=COLUMNS)
+    if len(fires):
+        # Empty chunk frames are object-typed; force numeric/datetime so consumers
+        # (numpy upwind math) never see an object array.
+        fires["lat"] = pd.to_numeric(fires["lat"], errors="coerce")
+        fires["lon"] = pd.to_numeric(fires["lon"], errors="coerce")
+        fires["frp"] = pd.to_numeric(fires["frp"], errors="coerce")
+        fires["acq_utc"] = pd.to_datetime(fires["acq_utc"], utc=True)
     fires = fires.dropna(subset=["lat", "lon", "acq_utc"]).drop_duplicates().reset_index(drop=True)
     log.info(
         "firms.done",

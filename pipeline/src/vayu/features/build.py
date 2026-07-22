@@ -20,9 +20,8 @@ from shapely.geometry import Point
 from vayu import upwind
 from vayu.cityconfig import CityConfig, load_city, resolve_cities
 from vayu.geo import assign_points_to_wards, read_geojson
-from vayu.ingest import firms
+from vayu.ingest import firms, openmeteo
 from vayu.ingest import openaq_archive as oaq
-from vayu.ingest import openmeteo
 from vayu.ingest.openaq_discover import discover_locations, load_seed
 from vayu.ingest.osm_static import build_station_landuse
 from vayu.lineage import LineageLog
@@ -80,10 +79,11 @@ def add_upwind(df: pd.DataFrame, fires: pd.DataFrame | None) -> pd.DataFrame:
     frp = np.zeros(len(df))
     cnt = np.zeros(len(df), dtype="int64")
     if fires is not None and not fires.empty:
-        flat = fires["lat"].to_numpy()
-        flon = fires["lon"].to_numpy()
-        ffrp = fires["frp"].to_numpy(dtype=float)
-        ft = fires["acq_utc"].to_numpy()  # datetime64[ns, UTC-naive ns]
+        # Cast to float64: empty FIRMS chunks can upcast these columns to object.
+        flat = fires["lat"].to_numpy(dtype=float)
+        flon = fires["lon"].to_numpy(dtype=float)
+        ffrp = pd.to_numeric(fires["frp"], errors="coerce").fillna(0.0).to_numpy(dtype=float)
+        ft = pd.to_datetime(fires["acq_utc"], utc=True).to_numpy()  # datetime64[ns]
         window = np.timedelta64(upwind.DEFAULT_TRAILING_H, "h")
         pos = np.arange(len(df))
         for _sid, idx in df.groupby("station_id").groups.items():
@@ -127,6 +127,39 @@ def add_landuse(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFr
         rows=len(lu),
     )
     return df.merge(lu, on="station_id", how="left")
+
+
+def add_satellite(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFrame:
+    """Broadcast cached daily GEE satellite values across each UTC day's hours.
+
+    Reads the satellite cache warmed by `vayu ingest --sources gee`. Columns are
+    always present; they stay NaN (schema-stable) when the cache is empty. The GEE
+    backfill is a separate step so the core parquet never waits on it.
+    """
+    from vayu.ingest.gee_extractor import load_satellite_daily
+
+    daily = load_satellite_daily(get_settings().raw_dir / cfg.slug / "gee")
+    df = df.drop(columns=[c for c in SATELLITE_COLS if c in df.columns], errors="ignore")
+    if daily.empty:
+        for c in SATELLITE_COLS:
+            df[c] = np.nan
+        return df
+    daily = daily.copy()
+    daily["station_id"] = daily["station_id"].astype(str)
+    daily["date"] = daily["date"].astype(str)
+    keep = ["station_id", "date", *[c for c in SATELLITE_COLS if c in daily.columns]]
+    df["date"] = df["ts_utc"].dt.strftime("%Y-%m-%d")
+    df = df.merge(daily[keep], on=["station_id", "date"], how="left").drop(columns="date")
+    for c in SATELLITE_COLS:
+        if c not in df.columns:
+            df[c] = np.nan
+    lin.add(
+        source="gee",
+        url="https://earthengine.googleapis.com",
+        resource_id="S5P+MCD19A2",
+        rows=len(daily),
+    )
+    return df
 
 
 def add_ward_id(df: pd.DataFrame, cfg: CityConfig, lin: LineageLog) -> pd.DataFrame:
@@ -214,8 +247,7 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
         )
     df = add_upwind(df, fires)
     df = add_landuse(df, cfg, lin)
-    for c in SATELLITE_COLS:
-        df[c] = np.nan  # GEE numeric path fills these; NaN when off (schema-stable)
+    df = add_satellite(df, cfg, lin)
     df = add_ward_id(df, cfg, lin)
 
     df = finalize(df)
