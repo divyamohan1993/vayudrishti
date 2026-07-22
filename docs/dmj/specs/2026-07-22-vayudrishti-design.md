@@ -1,167 +1,168 @@
 # VayuDrishti — Urban Air Quality Intelligence (ET AI Hackathon 2026)
 
-Status: DRAFT for adversarial review | Ceremony tier: Standard | Date: 2026-07-22
-Problem statement: #5 in `idea.md` (AI-Powered Urban Air Quality Intelligence for Smart City Intervention).
-Judging: Innovation 25%, Business Impact 25%, Technical Excellence 20%, Scalability 15%, UX 15%.
-Deliverables: working prototype, architecture diagram, presentation deck, demo video.
+Status: v2 APPROVED-FOR-BUILD (post adversarial review, 2 lenses, 26 findings resolved) | Date: 2026-07-22
+Problem: #5 in `idea.md`. Judging: Innovation 25, Business Impact 25, Technical Excellence 20, Scalability 15, UX 15.
+Deliverables: working prototype, architecture diagram, deck, demo video.
 
 ## 1. Vision
 
-City administrators have 900+ CAAQMS stations but no intelligence layer: a CAG audit found only 31% of monitored cities have any response protocol tied to readings. VayuDrishti fuses ground stations, multiple satellites, meteorology, and fire detections into a single loop: **nowcast (gap-filled) → 24-72h ward-level forecast → source attribution → enforcement queue → citizen advisories in Indian languages**. Every number traces to a real, free, public source. Every model claim ships with a validation receipt.
+900+ CAAQMS stations, no intelligence layer (CAG: only 31% of monitored cities have response protocols). VayuDrishti closes the loop: **gap-filled nowcast → 24-72h ward forecast → source attribution (labeled estimate) → enforcement queue → citizen advisories in Indian languages** — every number from a real free public source, every model claim shipped with a validation receipt. Positioning: "IITM's Delhi DSS, rebuilt for every Indian city, on open data."
 
-Positioning: "IITM's Delhi DSS, rebuilt for every Indian city, on open data."
+## 2. Users
 
-## 2. Users and use cases
+Municipal/SPCB officer (command center, evidence-backed actions), citizen (ward advisory in their language), judge (`/receipts` = measurable claims, `/pitch` = 10 slides).
 
-1. **Municipal commissioner / SPCB officer**: opens command center, sees ward-level risk now + 72h, gets ranked enforcement actions with evidence bundles.
-2. **Safety-conscious citizen**: ward advisory in their language (en/hi + regional), vulnerability-aware (schools, hospitals).
-3. **Hackathon judge**: `/receipts` page shows measurable claims (RMSE vs persistence baseline, ablations, data lineage), `/pitch` sells it in 10 slides.
+## 3. Data sources (all real, all free)
 
-## 3. Data sources (all real, all free; auth tier marked)
+| Source | What | Auth |
+|---|---|---|
+| OpenAQ S3 `openaq-data-archive` | CPCB hourly history Feb-2025→now (PM2.5/PM10/NO2/SO2/O3/CO) | none |
+| data.gov.in CPCB resource `3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69` | live station snapshot | free key (user) |
+| OpenAQ API v3 | live latest (alt path) | free key (user) |
+| Open-Meteo forecast + ERA5 archive + CAMS AQ | wind/temp/RH/precip/BLH; CAMS = covariate only, NEVER validation target | none |
+| NASA FIRMS country CSV (24h/48h/7d) | VIIRS 375m fires + FRP | none (MAP_KEY optional) |
+| NASA GIBS WMTS (`gibs.earthdata.nasa.gov`, also `gibs-{a,b,c}`) | satellite raster overlays: S5P NO2, MODIS AOD, VIIRS | none |
+| Google Earth Engine `COPERNICUS/S5P/OFFL/L3_{NO2,SO2,CO,AER_AI}`, `MODIS/061/MCD19A2_GRANULES` | numeric satellite features 2018→now | **GEE service-account JSON** (user; headless-capable, works in Actions) |
+| NASA Earthdata token | LAADS/FIRMS archive backup path | free token (user, backup) |
+| Datameet/HT Labs/OSM (Geofabrik extracts) | wards, roads, built-up, schools/hospitals | none |
+| IIT-K/TERI/SAFAR apportionment PDFs | attribution directional sanity refs | none |
 
-| Source | What | Access | Auth tier |
-|---|---|---|---|
-| OpenAQ S3 archive (`openaq-data-archive`) | Historical CPCB hourly PM2.5/PM10/NO2/SO2/O3/CO, Feb-2025→now | S3 public, `--no-sign-request` | T0 none |
-| data.gov.in CPCB CAAQMS (`3b01bcb8-0b14-4abf-b6f2-c1bfd384ba69`) | Live station snapshot, hourly | REST | T1 free key (user registers; sample key = throttled fallback) |
-| OpenAQ API v3 | Live latest per station (alt live path) | REST | T1 free key |
-| Open-Meteo forecast + archive (ERA5) + air-quality (CAMS) | Wind/temp/RH/precip/**boundary_layer_height**, forecast 7d + history 1940+; CAMS as covariate only, never ground truth | REST | T0 none |
-| NASA FIRMS active fire (country/region CSV, 24h/48h/7d) | VIIRS 375m fire detections + FRP (stubble/waste burning signal) | open CSV download | T0 none (API MAP_KEY = T1 optional) |
-| NASA GIBS WMTS | Satellite raster overlays: S5P NO2, MODIS Terra/Aqua AOD, VIIRS fires/AOD | open tile service | T0 none |
-| Google Earth Engine: `COPERNICUS/S5P/OFFL/L3_NO2|SO2|CO|AER_AI`, `MODIS/061/MCD19A2_GRANULES` (MAIAC AOD) | Numeric satellite features per station/grid cell, 2018→now | GEE Python API | T2 user runs `earthengine authenticate` once |
-| Datameet / HT Labs / OSM | Ward boundaries (GeoJSON), road density, built-up, POIs (schools/hospitals) | open | T0 none |
-| Kaggle "Air Quality Data in India 2015-2020" | Pre-training hedge corpus | download | T1 kaggle account (optional) |
-| IIT-Kanpur / TERI / SAFAR source apportionment PDFs | Soft ground truth for attribution sanity check | public PDFs | T0 none |
+**Satellites (5, real):** Sentinel-5P (TROPOMI), Terra + Aqua (MODIS MAIAC AOD), Suomi-NPP + NOAA-20 (VIIRS fires/AOD). Visual = GIBS (zero-auth, always on). Numeric = GEE service account (live in cron once key exists). Parquet satellite columns ALWAYS present, NaN when unavailable; `manifest.sat_numeric` boolean flags whether numeric path active; ablation receipt (skill with vs without) when active.
+**Rule: zero synthetic data.** Gaps filled only by models with uncertainty bands and labels.
 
-**Multi-satellite story (real, no fakery):** Sentinel-5P (TROPOMI), Terra + Aqua (MODIS MAIAC), Suomi-NPP + NOAA-20 (VIIRS) = 5 satellites. Two integration paths:
-- **Visual (T0, always on):** GIBS WMTS overlays on the map — real imagery, zero auth.
-- **Numeric (T2, feature path):** GEE extractor pulls per-cell/per-station time series into the feature store. Pipeline runs with or without these columns (LightGBM handles NaN natively); when enabled, T2 retrains and publishes an **ablation receipt** (skill with vs without satellite features).
+## 4. Cities (revised per review)
 
-**Rule: no synthetic data anywhere.** Gaps are filled by *models with uncertainty bounds and labels*, never by invented readings. CAMS is a model input feature, never a validation target.
+- **Delhi = deep**: all surfaces, full validation receipts, replay.
+- **Mumbai = standard**: nowcast + forecast + advisories, validated.
+- **Bengaluru = config-only, live**: pipeline runs, JSONs publish, map works; skips curated ward-cleaning, backtest receipt, verified translations. Demo moment: "adding a city = one YAML" (Scalability proof).
+City config `config/cities/{city}.yaml`: bbox, tz, wards source + `ward_id_field`, `station_match` (data.gov.in name → OpenAQ location id), languages, inventory refs.
 
-## 4. Cities (launch set)
+## 5. Modeling (with review hardening)
 
-Delhi (primary; richest stations + ward files + inventories), Mumbai, Bengaluru. City = one YAML config (`config/cities/{city}.yaml`: bbox, timezone, wards file, station match rules, languages, inventory refs). Adding a city touches config only — this IS the scalability demo.
-
-## 5. Gap-filling and modeling (the depth)
+### 5.0 Conventions (FROZEN — all teammates)
+- **Time**: storage = UTC ISO-8601 `Z`. CPCB/data.gov.in timestamps are IST → convert at ingest (unit test on boundary). ALL calendar/diurnal features from `Asia/Kolkata` local time. UI displays IST with "IST" suffix.
+- **Grid**: EPSG:4326, cell 0.01°×0.01° ("≈1km"), origin = city bbox SW corner floored to 0.01°, `cell_id = "{city}_{row}_{col}"`, `row = floor((lat−lat0)/0.01)`. `nowcast.json` carries `grid_meta {lat0, lon0, cell_deg, crs}`. Owner: `vayu-data` (`vayu/grid.py`).
+- **Distances/buffers**: computed in projected CRS (UTM 43N Delhi/Mumbai... use per-city UTM zone from config), never degrees.
+- **ward_id**: `"{city}_{zeropad3(id_field)}"` baked into published `wards.geojson` by `vayu-data`; every consumer joins on it, nobody re-derives. Stations/cells outside ward polygons get `ward_id = "{city}_unassigned"`, kept not dropped.
+- **station_id**: canonical = OpenAQ location id; data.gov.in names mapped via config `station_match`.
+- **Upwind sector** (`vayu/upwind.py`, owner data): apex = station or ward centroid; include FIRMS detections within ±45° of `wind_dir_10m` bearing (Open-Meteo convention: direction wind blows FROM, degrees clockwise from N), great-circle ≤100km; `frp_upwind` = ΣFRP trailing 24h, `fire_count_upwind` = count.
+- **AQI** (`vayu/aqi.py`, owner models): CPCB National AQI methodology, breakpoints from the official CPCB document (fetch it, do not reconstruct from memory). Grid/ward headline = **PM2.5 sub-index on trailing-24h mean**, labeled "PM2.5 sub-index (24h)". Full multi-pollutant AQI (max of sub-indices, ≥3 pollutants incl. one PM) only at stations having them. Category strings from one constants module; breakpoint table published on `/about-data`.
+- **Quantiles**: p50 + p90 only (p10 cut).
+- **Confidence**: enum `high|med|low`, thresholds fixed by models, used identically everywhere.
 
 ### 5.1 Nowcast fusion (spatial gap fill)
-Target: PM2.5 (and derived CPCB AQI) on a 1km grid, hourly.
-Features per cell/station: inverse-distance + nearest-k station aggregates, meteorology (wind vector, BLH, RH, temp, precip), satellite columns when present (S5P NO2/SO2/CO/AAI, AOD-550) with missing-indicators, FIRMS FRP upwind (24h, 100km sector), static land-use (road density 500m, built-up fraction, industrial distance), calendar (hour, dow, month, stubble season, Diwali window from public holiday calendar).
-Model: LightGBM **quantile regression** (p10/p50/p90) → every gap-filled value carries an uncertainty band. Cloud/monsoon satellite gaps: missing-indicators + 7-day median composites; model degrades gracefully.
-Validation: leave-one-station-out cross-validation per city → spatial RMSE/MAE vs IDW baseline.
+LightGBM quantile (p50/p90) on 0.01° grid, hourly. Features: nearest-k + IDW station aggregates, meteo (wind vector, BLH, RH, temp, precip), satellite numeric (NaN-robust + missing indicators + 7-day medians), FIRMS upwind, land-use (road density 500m, built-up frac, industrial dist — projected CRS), calendar (IST), station density. Validation: **LOSO CV stratified by distance-to-nearest-retained-station** with degradation curve, vs IDW baseline. No aggregate-only number.
 
 ### 5.2 Forecast (24/48/72h, ward level)
-Features: nowcast state, Open-Meteo *forecast* meteo (wind, BLH, precip), persistence + diurnal/seasonal encodings, recent FIRMS activity upwind.
-Model: LightGBM per horizon bucket, quantile outputs.
-Validation: **rolling-origin backtest** over ≥90 days holdout vs persistence baseline (t+h = t) and seasonal-naive. Receipts: RMSE, MAE, skill% = (1 − RMSE_model/RMSE_persistence), per city × horizon. Acceptance: skill > 0 on every horizon for Delhi; report honestly wherever it isn't for other cities.
+Ward level is deliberate (actionable unit); defended on `/pitch` + `/receipts` vs the brief's "1km" phrasing. Features: nowcast state **as of origin time only** (walk-forward snapshot, no future stations), Open-Meteo forecast meteo, persistence/diurnal/seasonal encodings, recent upwind FIRMS. LightGBM per horizon, p50/p90.
+Validation: rolling-origin backtest, ≥90 days, **embargo ≥ horizon + max feature lag (≥72h+)** between train end and test origin, vs persistence and seasonal-naive. **Committed target: skill > 0 at 24h Delhi; 48/72h reported honestly whatever they are.** Single-winter honesty: training data = Feb-2025→now (one winter); no multi-season generalization claims; stated plainly on `/receipts`.
+**t=0 seam**: timeline slider's "now" = nowcast ward value (area-weighted cell mean); forecast series starts at h=24.
 
-### 5.3 Source attribution (per ward, with confidence)
-Method stack (transparent, citable — not a black box):
-1. **CPF (conditional probability function)** wind-sector analysis per station: which directions deliver high-percentile PM2.5.
-2. **Feature decomposition**: SHAP on the fusion model groups contributions into source proxies (traffic ← road density × rush hour × NO2; biomass ← FIRMS upwind × season; industry ← industrial distance × SO2; dust ← RH/wind/coarse PM10/PM2.5 ratio; residential/other ← remainder).
-3. **Season/calendar priors** from published inventories.
-Output: per-ward source shares + confidence tier (high/med/low). Sanity check vs IIT-K/TERI/SAFAR published ranges → shown on `/receipts` as "within literature range: yes/no per sector". Label: *estimated attribution*, not measurement.
+### 5.3 Source attribution (labeled estimate)
+Primary = **CPF wind-sector analysis** per station (which bearings deliver high-percentile PM2.5) + land-use/calendar/inventory-anchored share heuristics. Output: per-ward shares {traffic, industry, biomass, dust, residential_other} + confidence tier + method notes. **Validation = directional correctness**: CPF bearing peaks vs known source geography (Delhi NW stubble belt in season, named industrial areas), shown on `/receipts`; inventory comparison labeled "consistency check", not accuracy claim (circularity acknowledged). SHAP = optional Delhi-only ablation, time permitting. Attribution NEVER claims measured emissions.
 
-### 5.4 Enforcement intelligence
-Rank wards by: persistence of hotspot (days above threshold) × attributed controllable share × trend. Each item = evidence card: 72h sparkline, dominant source + confidence, map snippet, suggested action (from a fixed action taxonomy per source type), nearest registered sources where public registries exist (CPCB grossly-polluting-industries list). Label recommendations as decision support.
+### 5.4 Enforcement queue
+Ranked by **measured** signals: exceedance persistence (days over threshold) × 72h trend × population/vulnerability weight. Attribution appears as confidence-tagged label on the card, not a rank multiplier. Evidence card: sparkline, dominant source label + confidence, map snippet, action from fixed taxonomy. Labeled decision support.
 
-### 5.5 Citizen advisories
-Ward risk (forecast p90 + vulnerability count from OSM schools/hospitals) → advisory text in en + hi + city language (kn for Bengaluru, mr for Mumbai). Generated at **build/publish time** by templates (LLM-authored during build, no runtime LLM cost). IVR/WhatsApp = mocked UI flows in demo (clearly labeled mock), web advisories fully real.
+### 5.5 Advisories
+Ward risk (forecast p90 + OSM vulnerable-site count) → advisory text en + hi + regional (Delhi hi/en, Mumbai mr, Bengaluru slide-only). Generated at publish time from templates (LLM-authored at build; runtime-free). Text is data → rendered as plain text ONLY (see security). IVR/WhatsApp = labeled mock flows.
 
 ## 6. Architecture
 
 ```mermaid
 flowchart LR
-  subgraph Sources[Real free sources]
-    A[OpenAQ S3 archive] --> P
-    B[data.gov.in CPCB live] --> P
-    C[Open-Meteo forecast+ERA5] --> P
-    D[FIRMS fire CSV] --> P
-    E[GEE: S5P + MAIAC numeric T2] -.optional.-> P
-    O[OSM/Datameet wards+POIs] --> P
+  subgraph T0[Zero-auth sources]
+    A[OpenAQ S3 archive]; C[Open-Meteo]; D[FIRMS CSV]; O[OSM/Datameet wards]
   end
-  P[Python pipeline `vayu` CLI\ningest → features → train → predict → publish] --> FS[(Parquet feature store\ndata/feature-store)]
-  P --> ART[(Model artifacts + receipts)]
-  P --> PUB[web/public/data/*.json\nnowcast, forecast, attribution,\nenforcement, advisories, receipts, manifest]
-  GH[GitHub Actions hourly cron] --> P
-  PUB --> V[Next.js on Vercel\nstatic + ISR, CDN cached]
+  subgraph T1[Keyed sources]
+    B[data.gov.in live]; E[GEE service acct: S5P+MAIAC]
+  end
+  T0 --> P; T1 --> P
+  P[pipeline/ `vayu` CLI: ingest→features→train→predict→publish] --> FS[(parquet feature store)]
+  P --> PUB[web/public/data/*.json + wards.geojson + replay/]
+  GH[GH Actions cron 6h + validation gate + demo freeze] --> P
+  PUB --> V[Next.js static, Vercel, client-side JSON fetch]
   G[NASA GIBS WMTS] --> V
-  V --> U1[Command center map]
-  V --> U2[/receipts/]
-  V --> U3[/pitch/]
+  BM[Self-hosted PMTiles basemap] --> V
+  V --> U1[Command center]; V --> U2[/receipts/]; V --> U3[/pitch/]
 ```
 
-- **Pipeline** (`ingest/`, `models/` as one Python package `vayu`, managed by `uv`): deterministic CLI stages; every output JSON carries `generated_at` + source manifest (URL + fetch timestamp + row counts) → data lineage provable.
-- **Web** (`web/`): Next.js 15 App Router, TypeScript strict, Tailwind v4, MapLibre GL + deck.gl (no map tokens), Zustand for UI state. Pages: `/` (national → city command center), `/city/[id]` (ward drill-down, forecast timeline slider, attribution, enforcement queue, advisories), `/receipts` (validation receipts + ablations + lineage), `/pitch` (10-slide Kawasaki deck, standalone), `/about-data` (sources, gaps, honest labeling).
-- **Refresh loop**: GitHub Actions cron (hourly) runs `vayu publish` → commits refreshed JSONs → Vercel auto-deploys. Zero servers, zero cost, real CI/CD visible publicly. Local `pnpm dev` + `uv run vayu publish` works without Actions.
-- **Serving model**: all inference precomputed at publish time; requests hit static CDN JSON. p95 API ≈ CDN latency. No runtime Python.
+- **Layout**: `pipeline/` (uv project, package `vayu`), `web/` (Next.js 15, TS strict, Tailwind v4, MapLibre GL + deck.gl, Zustand), `config/` (cities, schemas), `.github/workflows/`, `docs/`.
+- **Basemap**: self-hosted **Protomaps PMTiles** city extracts (OSM raster tile policy forbids app use; self-hosting = CSP-clean + works offline at finale). GIBS overlays when online.
+- **Refresh loop**: Actions cron **6h** (hourly only if finale needs it) → `vayu publish` → **pydantic content gate** (schema + sanity ranges + sanitization) → first-party git commit step (no third-party commit action) → Vercel redeploy. **Demo freeze**: schedule disabled via one workflow env toggle Aug 1-2; demo pinned to known-good deployment. Actions pinned to full commit SHAs, minimal `permissions:`, secrets masked.
+- **Location-aware entry**: on load, browser Geolocation API (graceful permission prompt) → client-side match to nearest supported city (haversine vs city centroids from manifest) → auto-open that city; denial/unsupported/outside-coverage → nearest-city banner + manual picker (always visible). Coordinates never leave the device — no IP-geolocation service, no external call, CSP untouched.
+- **Web data binding**: client-side fetch of `/data/*.json` (bad hourly file degrades one panel, never the build). Coords quantized (3 decimals) to keep payloads and git history small; feature-store parquet NEVER committed.
+- **Map resilience**: CSP includes `worker-src blob:`; `img-src`/`connect-src` enumerate `gibs.earthdata.nasa.gov` + `gibs-{a,b,c}.earthdata.nasa.gov` + self; WebGL2 feature-detect → static ward-choropleth SVG fallback; demo-bbox GIBS tiles pre-cached for offline.
+- **Serving**: all inference precomputed; requests hit CDN JSON.
 
-## 7. Security, performance, accessibility
+## 7. Security / performance / accessibility
 
-- No secrets client-side; keys only in `.env` (gitignored) / GitHub Actions secrets; `.env.example` committed. Zod-style validation of env at pipeline start (Python: pydantic-settings).
-- Static site: security headers via `next.config` (HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, strict CSP — self-hosted assets only, GIBS/tile endpoints explicitly allowed in `img-src`/`connect-src`).
-- No user input persisted, no auth surface, no DB → attack surface ≈ static CDN. **No `/super-admin`** (assumption A4 — nothing privileged exists to administer).
-- Performance: LCP < 2.5s (hero renders before map hydration), map vendor chunk lazy-loaded (budget exception A7: maplibre+deck.gl ≈ 250-350KB gz in their own async chunk; initial route JS < 200KB gz).
-- Accessibility WCAG 2.2 AA: full keyboard nav, ARIA landmarks/labels, AQI never color-only (category label + pattern), reduced-motion respected, alt text, focus order. Lighthouse a11y ≥ 95.
-- Structured logging in pipeline (Python `structlog`, JSON); web has no server logic to log.
+- Secrets only in `.env` (gitignored) + Actions secrets; `.env.example` committed; pydantic-settings validates at pipeline start. **Manifest/lineage store base URL + resource id only — query strings stripped** (data.gov.in puts the key in the query string). CI secret-scan over `web/public/data/*.json` + no-secrets grep gate.
+- **XSS**: station/ward/POI names + advisory text = untrusted. Map popups via `setText`/escaped DOM only; zero `dangerouslySetInnerHTML` on data-derived strings; publish-time content sanitization (strip HTML/control chars), not just shape validation.
+- Headers: HSTS, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, strict CSP (self + enumerated tile hosts).
+- Performance: LCP < 2.5s (hero before map hydration); map vendor chunk lazy async (initial route JS < 200KB gz; exception A7 on record). Lighthouse perf ≥ 85.
+- Accessibility WCAG 2.2 AA: keyboard nav, ARIA landmarks, AQI category never color-only (label + pattern), reduced motion, alt text. Lighthouse a11y ≥ 95.
+- Pipeline logging: structlog JSON, no secrets in logs.
 
-## 8. Data contracts (T1↔T2↔T3 interface — frozen after review)
+## 8. Data contracts (owner in brackets; frozen END OF DAY 2 in `config/schemas/*.json`; change = schema edit + SendMessage to consumers in same commit)
 
-- `data/feature-store/{city}/hourly.parquet`: `ts_utc, station_id, lat, lon, pm25, pm10, no2, so2, o3, co, wind_speed_10m, wind_dir_10m, temp_2m, rh_2m, precip_mm, blh_m, s5p_no2?, s5p_so2?, s5p_co?, s5p_aai?, aod550?, frp_upwind?, fire_count_upwind?, road_density, builtup_frac, industrial_dist_km, ward_id`
-- `web/public/data/{city}/nowcast.json`: `{generated_at, grid: [{cell_id, lat, lon, pm25_p10, pm25_p50, pm25_p90, aqi, category}], wards: [{ward_id, name, aqi, pm25_p50, confidence}]}`
-- `web/public/data/{city}/forecast.json`: same ward shape × horizons `[24,48,72]`
-- `web/public/data/{city}/attribution.json`: `{ward_id, shares: {traffic, industry, biomass, dust, residential_other}, confidence, method_notes}`
-- `web/public/data/{city}/enforcement.json`: ranked `[{ward_id, source_type, priority_score, evidence: {trend_72h: number[], persistence_days, attribution_confidence}, action}]`
-- `web/public/data/{city}/advisories.json`: `[{ward_id, risk_level, langs: {en, hi, <regional>}}]`
-- `web/public/data/receipts.json`: `{cities: {city: {nowcast_cv: {rmse, mae, baseline_rmse}, forecast: [{h, rmse, mae, persistence_rmse, skill_pct, n}], attribution_check: [{sector, ours, literature_range, within}], ablation?: {with_sat, without_sat}}}, lineage: [{source, url, fetched_at, rows}]}`
-- `web/public/data/manifest.json`: cities list + file index + `generated_at`.
-JSON schemas live in `config/schemas/*.json`; web validates with zod mirrors; pipeline validates before publish. Contract change = SendMessage to affected teammate + update schema file in same commit.
+- [data] `pipeline` parquet `data/feature-store/{city}/hourly.parquet`: `ts_utc, station_id, lat, lon, pm25, pm10, no2, so2, o3, co, wind_speed_10m, wind_dir_10m, temp_2m, rh_2m, precip_mm, blh_m, s5p_no2, s5p_so2, s5p_co, s5p_aai, aod550, frp_upwind, fire_count_upwind, road_density, builtup_frac, industrial_dist_km, ward_id` (satellite/fire cols always present, NaN allowed).
+- [data] `web/public/data/{city}/wards.geojson`: polygons + `properties.ward_id` (convention §5.0), `name`.
+- [models] `web/public/data/{city}/nowcast.json`: `{generated_at, fixture?, grid_meta, grid:[{cell_id, pm25_p50, pm25_p90, subindex24h, category}], wards:[{ward_id, name, pm25_p50, pm25_p90, subindex24h, category, confidence}]}`
+- [models] `web/public/data/{city}/forecast.json`: `{generated_at, fixture?, horizons_h:[24,48,72], wards:[{ward_id, name, series:[{h, pm25_p50, pm25_p90, subindex24h, category, confidence}]}]}`
+- [models] `attribution.json`: `[{ward_id, shares:{traffic,industry,biomass,dust,residential_other}, confidence, method_notes}]`
+- [models] `enforcement.json`: ranked `[{ward_id, source_label, confidence, priority_score, evidence:{trend_72h:number[], persistence_days, exceedance_pct}, action}]`
+- [models] `advisories.json`: `[{ward_id, risk_level, langs:{en, hi, regional?}}]`
+- [models] `receipts.json`: `{cities:{...nowcast_cv (stratified curve), forecast per h (rmse, mae, persistence_rmse, seasonal_naive_rmse, skill_pct, n, embargo_h), attribution_directional_checks, ablation?}, honesty_notes[], lineage:[{source, base_url, resource_id, fetched_at, rows}]}`
+- [models] `web/public/data/{city}/replay/{YYYY-MM-DD}/…` same shapes from **out-of-fold predictions only** + [models] `replay/index.json`.
+- [models] `web/public/data/manifest.json`: cities, file index, `generated_at`, `sat_numeric`, `fixture`.
+**Fixture protocol**: models generates schema-valid fixtures FROM REAL Delhi archive sample into the real paths with `"fixture": true`; web shows "sample data" banner on flag; handoff = overwrite same paths, flip flag, SendMessage.
 
 ## 9. Acceptance criteria (machine-checkable)
 
-1. `uv run vayu publish --city delhi` exits 0 producing all §8 files from **real fetched data**; manifest lists real source URLs + timestamps.
-2. `receipts.json` shows forecast skill_pct > 0 vs persistence for Delhi at 24/48/72h on a ≥90-day rolling backtest; honest values (even if negative) for Mumbai/Bengaluru.
-3. Nowcast LOSO CV beats IDW baseline RMSE for Delhi.
-4. `pnpm build` passes (typecheck + lint zero errors); `/`, `/city/delhi`, `/receipts`, `/pitch`, `/about-data` render.
-5. 3 cities selectable, each with ward polygons + nowcast + forecast + advisories (en/hi/regional).
-6. GIBS satellite overlays (S5P NO2, AOD, fires) toggle on the city map.
-7. `grep`-audit: no API keys in `web/` bundle or repo history; `.env.example` present.
-8. Lighthouse: a11y ≥ 95, performance ≥ 85 on `/` (throttled default).
-9. `/pitch` = 10 slides, standalone, zero external deps.
-10. Attribution sanity table on `/receipts` compares vs published Delhi apportionment ranges.
-11. Historical smog-episode replay mode (Nov 2025 window from archive) works in demo — because July is monsoon (low AQI); demo shows live + replay.
-12. `CHANGELOG.md` current; README passes humanizer gate (no em dashes, no AI-tell prose).
+1. `uv run vayu publish --city delhi` exit 0, all §8 files from real fetched data, lineage populated, no query strings.
+2. Delhi 24h forecast skill_pct > 0 vs persistence (rolling-origin, embargo stated); 48/72h + Mumbai reported honestly on `/receipts`.
+3. Delhi nowcast stratified LOSO curve beats IDW at every distance bucket ≤5km.
+4. `pnpm build` green (typecheck+lint); `/`, `/city/delhi`, `/receipts`, `/pitch`, `/about-data` render.
+5. Delhi deep + Mumbai standard + Bengaluru config-only all selectable with live JSONs; "add a city" = YAML + pipeline run, demoed.
+6. GIBS overlays toggle; WebGL2-absent fallback renders choropleth.
+7. Secret scan green: no keys in bundle, repo history, or published JSONs.
+8. Lighthouse a11y ≥ 95, perf ≥ 85 on `/`.
+9. `/pitch` 10 slides standalone.
+10. Attribution directional checks pass for Delhi (stubble bearing in season, ≥1 named industrial sector) on `/receipts`.
+11. Replay = Nov-2025 window from out-of-fold predictions, works offline.
+12. `CHANGELOG.md` current; prose passes humanizer gate.
+13. Cron validation gate blocks malformed publish (tested with poisoned fixture); demo-freeze toggle verified.
+14. Geolocation auto-detect: grant → nearest city opens; deny → picker works; coords provably never sent anywhere (network tab clean).
 
 ## 10. Assumption ledger
 
-| # | Assumption / parked decision | Default taken | Owner |
-|---|---|---|---|
-| A1 | Launch cities Delhi, Mumbai, Bengaluru | proceed | user may swap |
-| A2 | Name "VayuDrishti" (working title) | proceed | user may rename |
-| A3 | Numeric satellite features need one-time `earthengine authenticate` (T2). Until then: GIBS visual + T0 numeric sources; ablation retrain after auth | proceed | user step |
-| A4 | No `/super-admin` (global standard) — static site, zero privileged ops; revisit if backend appears | proceed | on record |
-| A5 | Deploy = Vercel free; repo push to github.com/divyamohan1993 needs `gh` auth at integration | park until integration | user |
-| A6 | Advisory text generated at publish time (templates), no runtime LLM spend | proceed | — |
-| A7 | Bundle budget exception: map vendor chunk async, initial route < 200KB gz | proceed | on record |
-| A8 | Live layer needs ONE free key (data.gov.in preferred, OpenAQ alt); until provided, "latest available" from archive, labeled with data age | proceed | user step (5 min) |
-| A9 | ET hackathon finale ~Aug 2 (fuzzy) — verify on Unstop | — | user |
-| A10 | Wards: Delhi files may be 272-ward vintage vs current 250; use best available vintage, note on /about-data | proceed | — |
-
-## 11. Team plan (Opus teammates, parallel)
-
-| Teammate | Scope | Key outputs |
+| # | Assumption | Status |
 |---|---|---|
-| `vayu-data` | `vayu` package: ingest (OpenAQ S3 backfill 18mo × 3 cities, live pollers, Open-Meteo, FIRMS, wards/OSM static features, GEE extractor stub-ready), feature store builder, schemas, manifest/lineage | feature-store parquet + `vayu ingest/features` green on real data |
-| `vayu-models` | nowcast fusion, forecast, attribution, enforcement ranking, advisories generation, receipts; `vayu train/predict/publish` | §8 JSONs + receipts with real validation numbers |
-| `vayu-web` | Next.js app, cinematic UI (dmj:art-directing method), map + GIBS overlays, all pages, a11y, /pitch | `pnpm build` green, pages per §9 |
-| `vayu-ops` | GH Actions cron workflow, Vercel config, README, architecture diagram render, .env.example, humanizer gate, CHANGELOG, demo video script | CI/CD + docs complete |
+| A1 | Cities: Delhi deep, Mumbai standard, Bengaluru config-only | revised per review |
+| A2 | Name "VayuDrishti" | user may rename |
+| A3 | GEE via **service-account JSON** (headless, cron-capable). User fetching keys | in progress (user) |
+| A4 | No `/super-admin` — static site, zero privileged ops | on record |
+| A5 | Vercel free deploy; repo push needs `gh` auth | parked to integration |
+| A6 | Advisories publish-time generated, runtime LLM-free | proceed |
+| A7 | Map vendor chunk async exception | on record |
+| A8 | Live layer needs one free key (data.gov.in preferred); until then archive-latest labeled with data age | user step |
+| A9 | Finale ~Aug 2 (verify on Unstop) | user |
+| A10 | Ward vintage best-available, noted on /about-data; BMC 24 vs BBMP 198 granularity noted | proceed |
+| A11 | Basemap = self-hosted PMTiles (OSM tile policy) | new |
+| A12 | Single-winter training window; claims scoped, stated on /receipts | new |
 
-Coordination: SendMessage peer-to-peer (schema handshakes: data↔models, models↔web on JSON contracts, ops↔all), progress updates to `main` at milestones, contracts frozen in `config/schemas/`. Fixture JSONs (clearly labeled `_fixture`, generated from real Delhi archive sample) allowed for web dev only until models publish real ones; fixtures never demoed.
+## 11. Team plan (4 Opus teammates, parallel; SendMessage coordination; schema freeze end of Day 2)
+
+| Teammate | Owns | Definition of done |
+|---|---|---|
+| `vayu-data` | `pipeline/` ingest: OpenAQ S3 backfill (3 cities), data.gov.in poller, Open-Meteo, FIRMS, OSM/wards (wards.geojson + ward_id bake), GEE extractor (service-acct ready, NaN-graceful), feature store, `vayu/grid.py`, `vayu/upwind.py`, parquet + wards schemas, city configs | `vayu ingest/features --city X` green on real data ×3 cities; conventions §5.0 unit-tested |
+| `vayu-models` | `vayu/aqi.py`, nowcast, forecast, attribution, enforcement, advisories, receipts, replay generation, publish + content gate, 7 web-JSON schemas, fixtures | §8 JSONs real, acceptance 1-3, 10-11 numbers |
+| `vayu-web` | `web/`: cinematic command center (invoke dmj:art-directing method), MapLibre+deck.gl+PMTiles, GIBS toggles, WebGL2 fallback, all pages, a11y, /pitch, /about-data | acceptance 4-6, 8-9 |
+| `vayu-ops` | `.github/workflows/` (cron + gate + freeze toggle + SHA-pinned), vercel config, README, .env.example, secret-scan gate, humanizer gate, CHANGELOG, architecture diagram, demo video script | acceptance 7, 12-13 |
+
+Peer protocol: milestone updates to `main`; blockers → SendMessage the owning peer directly; contract change = schema file + SendMessage same commit; no remote push until ops confirms `gh` auth with user.
 
 ## 12. Risks (worst case on record)
 
-- **Crowded pick**: judges see many AQI dashboards → we lead demo with receipts (skill%, ablation, lineage) in first 30s. If this goes wrong: we look like dashboard #11.
-- **OpenAQ S3 schedule gap or CPCB outage during finale**: mirror priority-station parquet locally on day 1; replay mode always works offline.
-- **Monsoon demo dullness**: replay Nov 2025 episode (real archive data) + live view side by side.
-- **Skill ≤ 0 on some city/horizon**: report honestly on /receipts; honesty is the differentiator, not a failure.
-- **GEE auth never provided**: satellite stays visual-only + numeric fires; ablation receipt shows what satellite adds where enabled. Story intact.
+Crowded AQI field → lead demo with receipts in first 30s. Upstream outage at finale → local parquet mirror + replay offline. Monsoon dull live AQI → replay Nov-2025 side-by-side. Skill ≤0 beyond 24h → honest receipts as differentiator. GEE key never lands → GIBS visual + T0 numeric fires; ablation shows the delta where enabled. Judge asks "trained on the replay?" → out-of-fold replay + embargo note, by design.
