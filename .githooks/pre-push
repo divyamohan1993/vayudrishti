@@ -39,10 +39,12 @@ else
     else
       base="$rsha"
     fi
-    # Gate SHIPPED prose. Internal design specs (docs/dmj/**) and the idea dump
-    # are engineering artifacts owned by the team, not user-facing copy: excluded.
+    # Gate SHIPPED prose. Excluded: internal design specs (docs/dmj/**) and the
+    # idea dump (team engineering artifacts), and web/public/data/** (model-
+    # generated data outputs like briefs.json, gated by the content gate and the
+    # publish-time key/nvapi grep, never prose-gated).
     NEW=$(git diff --name-only -z --diff-filter=ACM "$base" "$lsha" 2>/dev/null | tr '\0' '\n' \
-      | grep -Ei '\.(md|mdx|markdown|txt)$' | grep -Ev '^(docs/dmj/|idea\.md$)')
+      | grep -Ei '\.(md|mdx|markdown|txt)$' | grep -Ev '^(docs/dmj/|web/public/data/|idea\.md$)')
     FILES=$(printf '%s\n%s\n' "$FILES" "$NEW")
   done
   FILES=$(printf '%s\n' "$FILES" | sed '/^[[:space:]]*$/d' | sort -u)

@@ -28,7 +28,7 @@ jobs:
     # Demo freeze: skip the ENTIRE job when the repo variable is 1.
     if: ${{ vars.DEMO_FREEZE != '1' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 40   # publish (<15m budget) + briefs (<=10m) + gate + commit
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -82,6 +82,19 @@ jobs:
           if [ "$dur" -gt 900 ]; then
             echo "::warning title=publish budget::publish took ${dur}s, over the 15-minute budget"
           fi
+
+      - name: Reasoning agents briefs (non-blocking, never fails the refresh)
+        # Runs AFTER publish (reasons over the just-published per-city JSON) and
+        # BEFORE the gate (so the gate validates briefs.json + agentlog.json too).
+        # The command keeps stale briefs on any NIM failure and exits 0;
+        # continue-on-error is extra insurance so nothing here blocks the commit.
+        continue-on-error: true
+        timeout-minutes: 10
+        working-directory: pipeline
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          VAYU_WEB_DATA_DIR: ${{ github.workspace }}/web/public/data
+        run: uv run vayu briefs --city all
 
       - name: Content gate (REQUIRED, blocks malformed publish, acceptance 13)
         working-directory: pipeline

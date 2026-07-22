@@ -37,6 +37,12 @@ All notable changes to VayuDrishti are recorded here. Format follows
   - Secret scan and `.gitleaks.toml` now allowlist test directories, since the
     security unit tests embed fake token shapes on purpose. Published data and the
     built bundle stay fully scanned.
+  - `refresh.yml`: added the reasoning-agents step `vayu briefs --city all` between
+    publish and the gate, non-blocking with a 10-minute timeout, so the gate also
+    validates `briefs.json` and `agentlog.json` and a Nemotron outage never blocks
+    the refresh. Job timeout raised to 40 minutes.
+  - Humanizer file scan (pre-push and CI) now excludes `web/public/data/**`, since
+    those are model-generated data outputs gated by the content gate, not prose.
 
 - 2026-07-22 Operations foundation (vayu-ops):
   - `refresh.yml`: scheduled data refresh every six hours plus manual dispatch.

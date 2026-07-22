@@ -47,8 +47,9 @@ jobs:
       - name: Humanize gate (all shipped prose; internal specs excluded)
         run: |
           # Gate every tracked prose file except the internal design specs
-          # (docs/dmj/**) and the idea dump, which are team engineering artifacts.
-          files=$(git ls-files '*.md' '*.mdx' '*.markdown' '*.txt' | grep -Ev '^(docs/dmj/|idea\.md$)' || true)
+          # (docs/dmj/**), the idea dump, and web/public/data/** (model-generated
+          # data outputs, gated by the content gate, never prose-gated).
+          files=$(git ls-files '*.md' '*.mdx' '*.markdown' '*.txt' | grep -Ev '^(docs/dmj/|web/public/data/|idea\.md$)' || true)
           if [ -z "$files" ]; then echo "No shipped prose yet; skipping."; exit 0; fi
           printf '%s\n' "$files" | tr '\n' '\0' | xargs -0 node .humanize/humanize-guard.mjs --gate
 
