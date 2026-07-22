@@ -20,6 +20,7 @@ from shapely.geometry import Point
 from vayu import upwind
 from vayu.cityconfig import CityConfig, load_city, resolve_cities
 from vayu.geo import assign_points_to_wards, read_geojson
+from vayu.ingest import firms
 from vayu.ingest import openaq_archive as oaq
 from vayu.ingest import openmeteo
 from vayu.ingest.openaq_discover import discover_locations, load_seed
@@ -202,6 +203,15 @@ def build_city(slug: str, fires: pd.DataFrame | None = None) -> Path:
     start = f"{oaq.ARCHIVE_START[0]}-{oaq.ARCHIVE_START[1]:02d}-01"
     end = openmeteo.default_end_date()
     df = add_meteo(base, slug, start, end, lin)
+
+    if fires is None:
+        fires = firms.fetch_city_fires(cfg, start, settings.raw_dir / slug / "firms")
+        lin.add(
+            source="nasa-firms",
+            url=firms.ARCHIVE_URL,
+            resource_id=f"VIIRS:{cfg.firms_country}",
+            rows=len(fires),
+        )
     df = add_upwind(df, fires)
     df = add_landuse(df, cfg, lin)
     for c in SATELLITE_COLS:

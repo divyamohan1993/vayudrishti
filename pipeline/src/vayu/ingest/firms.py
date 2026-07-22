@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -24,14 +25,29 @@ from vayu.timeutils import now_utc
 log = get_logger("ingest.firms")
 
 ARCHIVE_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv"
-NRT_AGE_DAYS = 60
+AVAILABILITY_URL = "https://firms.modaps.eosdis.nasa.gov/api/data_availability/csv"
+MAX_DAY_RANGE = 5  # FIRMS area API caps day_range at 5
 BBOX_PAD_DEG = 1.0  # ~100 km, so upwind fires beyond the city bbox are captured
 COLUMNS = ["lat", "lon", "frp", "acq_utc"]
+SP_FALLBACK_CUTOFF = date(2026, 4, 27)
 
 
-def _source_for(d: date) -> str:
-    age = (date.today() - d).days
-    return "VIIRS_SNPP_NRT" if age <= NRT_AGE_DAYS else "VIIRS_SNPP_SP"
+@lru_cache(maxsize=1)
+def _sp_cutoff(key: str) -> date:
+    """Last date covered by standard-processing (SP); newer dates need NRT."""
+    try:
+        resp = requests.get(f"{AVAILABILITY_URL}/{key}/all", timeout=60)
+        resp.raise_for_status()
+        for line in resp.text.splitlines():
+            if line.startswith("VIIRS_SNPP_SP,"):
+                return date.fromisoformat(line.split(",")[2])
+    except (requests.RequestException, ValueError, IndexError):
+        pass
+    return SP_FALLBACK_CUTOFF
+
+
+def _source_for(d: date, sp_cutoff: date) -> str:
+    return "VIIRS_SNPP_SP" if d <= sp_cutoff else "VIIRS_SNPP_NRT"
 
 
 def _parse(csv_text: str) -> pd.DataFrame:
@@ -79,11 +95,12 @@ def fetch_city_fires(cfg: CityConfig, start: str | None, cache_dir: Path) -> pd.
     end_date = now_utc().date()
 
     cache_dir.mkdir(parents=True, exist_ok=True)
+    sp_cutoff = _sp_cutoff(key)
     frames: list[pd.DataFrame] = []
     cur = start_date
     while cur <= end_date:
-        span = min(10, (end_date - cur).days + 1)
-        source = _source_for(cur)
+        span = min(MAX_DAY_RANGE, (end_date - cur).days + 1)
+        source = _source_for(cur, sp_cutoff)
         cache = cache_dir / f"{source}_{cur.isoformat()}_{span}.parquet"
         if cache.exists():
             frames.append(pd.read_parquet(cache))
@@ -94,7 +111,7 @@ def fetch_city_fires(cfg: CityConfig, start: str | None, cache_dir: Path) -> pd.
                 log.warning("firms.chunk_error", start=cur.isoformat(), error=type(exc).__name__)
                 df = pd.DataFrame(columns=COLUMNS)
             # Cache only finalized (older) windows; the trailing window stays live.
-            if (end_date - cur).days >= 10:
+            if (end_date - cur).days >= MAX_DAY_RANGE:
                 df.to_parquet(cache, index=False)
             frames.append(df)
         cur += timedelta(days=span)
