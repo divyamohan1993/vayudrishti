@@ -17,6 +17,8 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta
 
+import numpy as np
+
 EARTH_RADIUS_KM = 6371.0088
 DEFAULT_MAX_KM = 100.0
 DEFAULT_HALF_ANGLE_DEG = 45.0
@@ -61,6 +63,32 @@ def is_upwind(
         return False
     bearing = initial_bearing_deg(apex_lat, apex_lon, fire_lat, fire_lon)
     return angular_diff_deg(bearing, wind_dir_deg) <= half_angle_deg
+
+
+def haversine_km_np(lat1: float, lon1: float, lats2, lons2):
+    """Vectorized great-circle km from a scalar apex to arrays of points."""
+    p1 = math.radians(lat1)
+    p2 = np.radians(lats2)
+    dphi = np.radians(lats2 - lat1)
+    dlmb = np.radians(lons2 - lon1)
+    a = np.sin(dphi / 2) ** 2 + math.cos(p1) * np.cos(p2) * np.sin(dlmb / 2) ** 2
+    return 2 * EARTH_RADIUS_KM * np.arcsin(np.minimum(1.0, np.sqrt(a)))
+
+
+def bearing_deg_np(lat1: float, lon1: float, lats2, lons2):
+    """Vectorized bearing (deg clockwise from N) from a scalar apex to arrays."""
+    p1 = math.radians(lat1)
+    p2 = np.radians(lats2)
+    dl = np.radians(lons2 - lon1)
+    y = np.sin(dl) * np.cos(p2)
+    x = math.cos(p1) * np.sin(p2) - math.sin(p1) * np.cos(p2) * np.cos(dl)
+    return (np.degrees(np.arctan2(y, x)) + 360.0) % 360.0
+
+
+def angular_diff_np(bearings, wind_dir: float):
+    """Vectorized smallest bearing difference to a scalar wind direction, [0,180]."""
+    d = np.abs((bearings - wind_dir) % 360.0)
+    return np.minimum(d, 360.0 - d)
 
 
 def upwind_aggregate(
