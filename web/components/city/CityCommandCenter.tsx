@@ -13,7 +13,7 @@ import {
   briefs as briefsSchema,
 } from "@/lib/schemas";
 import type { ManifestCity, NowcastWard } from "@/lib/schemas";
-import { MANIFEST_URL, dataUrl } from "@/lib/paths";
+import { MANIFEST_URL, cityConventionUrl, dataUrl } from "@/lib/paths";
 import { AQI_ORDER, AQI_STYLES } from "@/lib/aqi";
 import { LANGUAGE_NAMES } from "@/lib/i18n";
 import { cn } from "@/lib/cn";
@@ -64,8 +64,13 @@ export function CityCommandCenter({ cityId }: { cityId: string }) {
   const enforcementState = useResource(city ? dataUrl(city.files.enforcement) : null, enforcementSchema);
   const attributionState = useResource(city ? dataUrl(city.files.attribution) : null, attributionSchema);
   const advisoriesState = useResource(city ? dataUrl(city.files.advisories) : null, advisoriesSchema);
-  // Only fetch briefs when the manifest declares the file (avoids a probe 404).
-  const briefsUrl = city?.files.briefs ? dataUrl(city.files.briefs) : null;
+  // Prefer the manifest-declared path; else the convention path for deep-tier
+  // cities where the agent layer runs (keeps other cities 404-free).
+  const briefsUrl = city?.files.briefs
+    ? dataUrl(city.files.briefs)
+    : city?.tier === "deep"
+      ? cityConventionUrl(cityId, "briefs.json")
+      : null;
   const briefsState = useResource(briefsUrl, briefsSchema);
 
   const resetForCity = useUIStore((s) => s.resetForCity);

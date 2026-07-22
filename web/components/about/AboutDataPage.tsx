@@ -2,7 +2,7 @@
 
 import { useResource } from "@/lib/hooks";
 import { agentLog as agentLogSchema, manifest as manifestSchema, receipts as receiptsSchema } from "@/lib/schemas";
-import { MANIFEST_URL, RECEIPTS_URL, dataUrl } from "@/lib/paths";
+import { AGENTLOG_URL, MANIFEST_URL, RECEIPTS_URL, dataUrl } from "@/lib/paths";
 import { fmtCompact } from "@/lib/format";
 import { Panel } from "@/components/ui/Panel";
 import { PanelBoundary } from "@/components/ui/PanelBoundary";
@@ -31,8 +31,9 @@ const GAPS = [
 export function AboutDataPage() {
   const rc = useResource(RECEIPTS_URL, receiptsSchema);
   const mf = useResource(MANIFEST_URL, manifestSchema);
-  // Only fetch the agent log when the manifest declares it (avoids a probe 404).
-  const agentlogUrl = mf.status === "ready" && mf.data.agentlog ? dataUrl(mf.data.agentlog) : null;
+  // Prefer the manifest-declared path; else the global convention path (the
+  // agent log is published globally, so the fallback resolves when present).
+  const agentlogUrl = mf.status === "ready" ? (mf.data.agentlog ? dataUrl(mf.data.agentlog) : AGENTLOG_URL) : null;
   const al = useResource(agentlogUrl, agentLogSchema);
 
   const satNumeric = mf.status === "ready" ? mf.data.sat_numeric : undefined;

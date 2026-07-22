@@ -442,6 +442,7 @@ export type EvidenceRef = z.infer<typeof evidenceRef>;
 
 export const actionBrief = z.object({
   id: z.string(),
+  brief_type: z.string().optional(),
   headline: z.string(),
   situation: z.string(),
   action: z.string(),
