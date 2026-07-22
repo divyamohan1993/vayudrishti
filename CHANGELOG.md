@@ -46,6 +46,10 @@ All notable changes to VayuDrishti are recorded here. Format follows
     the refresh. Job timeout raised to 40 minutes.
   - Humanizer file scan (pre-push and CI) now excludes `web/public/data/**`, since
     those are model-generated data outputs gated by the content gate, not prose.
+  - `refresh.yml` and `ci.yml`: added the blocking resolver-receipts audit
+    (`vayu briefs --audit --city all`, acceptance 18) after the gate. It
+    re-resolves every evidence and basis reference in the published briefs against
+    the shipped artifacts and fails on any unresolved citation.
 
 - 2026-07-22 Operations foundation (vayu-ops):
   - `refresh.yml`: scheduled data refresh every six hours plus manual dispatch.

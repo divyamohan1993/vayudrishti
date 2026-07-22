@@ -103,6 +103,17 @@ jobs:
         # Uniform --city all (confirmed by vayu-models; matches vayu-data registry).
         run: uv run vayu gate --city all --data-root ${{ github.workspace }}/web/public/data
 
+      - name: Resolver-receipts audit (BLOCKING, acceptance 18)
+        # Re-reads the just-published briefs.json and strictly re-resolves every
+        # evidence_ref + basis_ref against the published artifacts. exit 1 means a
+        # shipped brief cites a ref that does not resolve, which MUST fail the
+        # publish, so this is deliberately NOT continue-on-error. Read-only, no
+        # NIM call, no NVIDIA key; a stale briefs.json is auto-skipped.
+        working-directory: pipeline
+        env:
+          VAYU_WEB_DATA_DIR: ${{ github.workspace }}/web/public/data
+        run: uv run vayu briefs --audit --city all
+
       - name: Secret scan on published JSON (acceptance 7)
         run: sh scripts/secret-scan.sh
 

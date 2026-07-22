@@ -97,6 +97,14 @@ jobs:
           else
             echo "OK: content gate rejected the poisoned fixture as required."
           fi
+      - name: Resolver-receipts audit of committed briefs (acceptance 18)
+        if: steps.detect.outputs.present == 'true'
+        working-directory: pipeline
+        # Blocking: re-resolves every evidence_ref + basis_ref in the committed
+        # briefs.json against the published artifacts. Read-only, no secrets.
+        env:
+          VAYU_WEB_DATA_DIR: ${{ github.workspace }}/web/public/data
+        run: uv run vayu briefs --audit --city all
 
   # --- Web (Next.js static export): lint + typecheck + build ------------------
   web:
