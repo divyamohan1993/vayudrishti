@@ -1,119 +1,24 @@
 {
-  "generated_at": "2026-07-22T20:38:07Z",
+  "generated_at": "2026-07-22T21:42:29Z",
   "fixture": true,
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
   "briefs": [
     {
-      "id": "delhi-2025-12-13-brahampuri-dust-01",
+      "id": "delhi-2025-12-12-welcomecolony-biomass-01",
       "brief_type": "action",
-      "headline": "Dust-driven Very Poor forecast triggers GRAP-IV dust suppression in Brahampuri",
-      "situation": "Forecast crosses from Poor to Very Poor across all horizons while dust dominates at high confidence and enforcement persistence remains elevated under GRAP-IV.",
-      "action": "Deploy water sprinkling for dust suppression",
-      "target_wards": [
-        "delhi_173"
-      ],
-      "trigger_window": {
-        "start_utc": "2025-12-13T03:30:00Z",
-        "end_utc": "2025-12-16T03:30:00Z"
-      },
-      "expected_effect": null,
-      "owner": "MCD",
-      "advisory_langs": [
-        "en",
-        "hi"
-      ],
-      "evidence_refs": [
-        {
-          "label": "nowcast p90, delhi_173",
-          "artifact": "nowcast",
-          "path": "nowcast.wards[ward_id=delhi_173].pm25_p90",
-          "value": 156.5,
-          "resolved": true
-        },
-        {
-          "label": "24h forecast p90, delhi_173",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_173].series[h=24].pm25_p90",
-          "value": 206.7,
-          "resolved": true
-        },
-        {
-          "label": "48h forecast p90, delhi_173",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_173].series[h=48].pm25_p90",
-          "value": 178.3,
-          "resolved": true
-        },
-        {
-          "label": "72h forecast p90, delhi_173",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_173].series[h=72].pm25_p90",
-          "value": 217.0,
-          "resolved": true
-        },
-        {
-          "label": "enforcement priority, delhi_173",
-          "artifact": "enforcement",
-          "path": "enforcement.ranked[ward_id=delhi_173].priority_score",
-          "value": 98.8,
-          "resolved": true
-        },
-        {
-          "label": "exceedance %, delhi_173",
-          "artifact": "enforcement",
-          "path": "enforcement.ranked[ward_id=delhi_173].evidence.exceedance_pct",
-          "value": 70.3,
-          "resolved": true
-        },
-        {
-          "label": "persistence days, delhi_173",
-          "artifact": "enforcement",
-          "path": "enforcement.ranked[ward_id=delhi_173].evidence.persistence_days",
-          "value": 21,
-          "resolved": true
-        },
-        {
-          "label": "dominant source share (dust), delhi_173",
-          "artifact": "attribution",
-          "path": "attribution.wards[ward_id=delhi_173].shares.dust",
-          "value": 0.432,
-          "resolved": true
-        },
-        {
-          "label": "ledger causal effect, delhi_173",
-          "artifact": "ledger",
-          "path": "ledger.wards[ward_id=delhi_173].effect_ugm3",
-          "value": -14.4,
-          "resolved": true
-        },
-        {
-          "label": "active stage GRAP-IV start",
-          "artifact": "interventions",
-          "path": "interventions.calendar[stage=GRAP-IV].start_utc",
-          "value": "2025-12-13T03:30:00Z",
-          "resolved": true
-        }
-      ],
-      "verifier": {
-        "passed": true,
-        "notes": "All numbers backed by resolved refs; 'dust dominates' (43.2% share) is qualitative context, not a material overreach. Action matches GRAP-IV dust suppression. No expected_effect claimed."
-      }
-    },
-    {
-      "id": "delhi-2025-12-13-welcome-colony-biomass-01",
-      "brief_type": "action",
-      "headline": "Biomass-driven Very Poor escalation triggers GRAP-IV open burning ban in Welcome Colony",
-      "situation": "Already Very Poor nowcast with steep forecast rise to 72h while biomass dominates and open-burning ban enforcement shows high persistence under GRAP-IV.",
-      "action": "Ban open biomass burning",
+      "headline": "Welcome Colony faces extreme biomass-driven PM2.5 forecast under active GRAP-IV",
+      "situation": "Welcome Colony shows an extreme 72-hour forecast peak with biomass as the dominant source, highest enforcement priority score, and three-week persistence of exceedances while GRAP-IV is active.",
+      "action": "Enforce ban on open biomass burning and inspect illegal waste combustion sites",
+      "action_code": "ban_open_biomass_burning",
       "target_wards": [
         "delhi_166"
       ],
       "trigger_window": {
-        "start_utc": "2025-12-13T03:30:00Z",
-        "end_utc": "2025-12-16T03:30:00Z"
+        "start_utc": "2025-12-12T18:30:00Z",
+        "end_utc": "2025-12-19T18:30:00Z"
       },
       "expected_effect": null,
-      "owner": "MCD",
+      "owner": "DPCC",
       "advisory_langs": [
         "en",
         "hi"
@@ -127,24 +32,17 @@
           "resolved": true
         },
         {
-          "label": "24h forecast p90, delhi_166",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_166].series[h=24].pm25_p90",
-          "value": 173.7,
-          "resolved": true
-        },
-        {
-          "label": "48h forecast p90, delhi_166",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_166].series[h=48].pm25_p90",
-          "value": 186.7,
-          "resolved": true
-        },
-        {
           "label": "72h forecast p90, delhi_166",
           "artifact": "forecast",
           "path": "forecast.wards[ward_id=delhi_166].series[h=72].pm25_p90",
           "value": 273.1,
+          "resolved": true
+        },
+        {
+          "label": "dominant source share (biomass), delhi_166",
+          "artifact": "attribution",
+          "path": "attribution.wards[ward_id=delhi_166].shares.biomass",
+          "value": 0.339,
           "resolved": true
         },
         {
@@ -169,44 +67,45 @@
           "resolved": true
         },
         {
-          "label": "dominant source share (biomass), delhi_166",
-          "artifact": "attribution",
-          "path": "attribution.wards[ward_id=delhi_166].shares.biomass",
-          "value": 0.339,
-          "resolved": true
-        },
-        {
-          "label": "ledger causal effect, delhi_166",
-          "artifact": "ledger",
-          "path": "ledger.wards[ward_id=delhi_166].effect_ugm3",
-          "value": -20.1,
-          "resolved": true
-        },
-        {
           "label": "active stage GRAP-IV start",
           "artifact": "interventions",
           "path": "interventions.calendar[stage=GRAP-IV].start_utc",
-          "value": "2025-12-13T03:30:00Z",
+          "value": "2025-12-12T18:30:00Z",
+          "resolved": true
+        },
+        {
+          "label": "causal effect, delhi_166",
+          "artifact": "ledger",
+          "path": "ledger.wards[ward_id=delhi_166].effect_ugm3",
+          "value": -18.7,
+          "resolved": true
+        },
+        {
+          "label": "avoided deaths, delhi_166",
+          "artifact": "ledger",
+          "path": "ledger.wards[ward_id=delhi_166].avoided_deaths",
+          "value": 10.539,
           "resolved": true
         }
       ],
       "verifier": {
         "passed": true,
-        "notes": "All numbers backed by resolved refs; 'biomass dominates' (33.9% share) is qualitative context. Action matches GRAP-IV open burning ban. No expected_effect claimed."
+        "notes": "All quantitative claims backed by resolved refs; biomass share 33.9% supports 'dominant source' characterization; action appropriate for biomass-driven forecast."
       }
     },
     {
-      "id": "delhi-2025-12-13-kalyanpuri-traffic-01",
+      "id": "delhi-2025-12-12-kalyanpuri-traffic-01",
       "brief_type": "action",
-      "headline": "Traffic-driven Severe forecast triggers GRAP-IV heavy traffic diversion in Kalyanpuri",
-      "situation": "Highest observed nowcast in the set with traffic as dominant source, heavy-traffic diversion enforcement showing high exceedance and multi-week persistence under GRAP-IV.",
-      "action": "Reroute or divert heavy traffic",
+      "headline": "Kalyan Puri sustains highest current PM2.5 with traffic dominance and persistent exceedances under GRAP-IV",
+      "situation": "Kalyan Puri carries the highest current PM2.5 level among the set with traffic as the dominant source, very high exceedance percentage, and eighteen-day enforcement persistence while GRAP-IV is active.",
+      "action": "Reroute and divert heavy commercial traffic from Kalyan Puri corridors",
+      "action_code": "reroute_divert_heavy_traffic",
       "target_wards": [
         "delhi_128"
       ],
       "trigger_window": {
-        "start_utc": "2025-12-13T03:30:00Z",
-        "end_utc": "2025-12-16T03:30:00Z"
+        "start_utc": "2025-12-12T18:30:00Z",
+        "end_utc": "2025-12-19T18:30:00Z"
       },
       "expected_effect": null,
       "owner": "Traffic Police",
@@ -223,24 +122,10 @@
           "resolved": true
         },
         {
-          "label": "24h forecast p90, delhi_128",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_128].series[h=24].pm25_p90",
-          "value": 203.1,
-          "resolved": true
-        },
-        {
-          "label": "48h forecast p90, delhi_128",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_128].series[h=48].pm25_p90",
-          "value": 226.4,
-          "resolved": true
-        },
-        {
-          "label": "72h forecast p90, delhi_128",
-          "artifact": "forecast",
-          "path": "forecast.wards[ward_id=delhi_128].series[h=72].pm25_p90",
-          "value": 288.0,
+          "label": "dominant source share (traffic), delhi_128",
+          "artifact": "attribution",
+          "path": "attribution.wards[ward_id=delhi_128].shares.traffic",
+          "value": 0.351,
           "resolved": true
         },
         {
@@ -265,30 +150,30 @@
           "resolved": true
         },
         {
-          "label": "dominant source share (traffic), delhi_128",
-          "artifact": "attribution",
-          "path": "attribution.wards[ward_id=delhi_128].shares.traffic",
-          "value": 0.351,
-          "resolved": true
-        },
-        {
-          "label": "ledger causal effect, delhi_128",
-          "artifact": "ledger",
-          "path": "ledger.wards[ward_id=delhi_128].effect_ugm3",
-          "value": -18.2,
-          "resolved": true
-        },
-        {
           "label": "active stage GRAP-IV start",
           "artifact": "interventions",
           "path": "interventions.calendar[stage=GRAP-IV].start_utc",
-          "value": "2025-12-13T03:30:00Z",
+          "value": "2025-12-12T18:30:00Z",
+          "resolved": true
+        },
+        {
+          "label": "causal effect, delhi_128",
+          "artifact": "ledger",
+          "path": "ledger.wards[ward_id=delhi_128].effect_ugm3",
+          "value": -18.7,
+          "resolved": true
+        },
+        {
+          "label": "avoided deaths, delhi_128",
+          "artifact": "ledger",
+          "path": "ledger.wards[ward_id=delhi_128].avoided_deaths",
+          "value": 2.483,
           "resolved": true
         }
       ],
       "verifier": {
         "passed": true,
-        "notes": "All numbers backed by resolved refs; 'traffic as dominant source' (35.1% share) and 'highest observed nowcast in the set' (235.6 vs 156.5, 165.4) are accurate. Action matches GRAP-IV heavy traffic diversion. No expected_effect claimed."
+        "notes": "All claims supported: highest nowcast (235.6) among set, traffic share 35.1%, exceedance 74.4%, persistence 18 days; action matches traffic dominance."
       }
     }
   ]

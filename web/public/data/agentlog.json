@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-22T20:38:07Z",
+  "generated_at": "2026-07-22T21:42:29Z",
   "model": "nvidia/nemotron-3-ultra-550b-a55b",
   "runs": [
     {
@@ -7,9 +7,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 14603,
-      "tokens_out": 4369,
-      "duration_ms": 114125,
+      "tokens_in": 14582,
+      "tokens_out": 2674,
+      "duration_ms": 40031,
       "repairs": 0
     },
     {
@@ -17,9 +17,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 3509,
-      "tokens_out": 59,
-      "duration_ms": 2250,
+      "tokens_in": 3174,
+      "tokens_out": 145,
+      "duration_ms": 19187,
       "repairs": 0
     },
     {
@@ -27,19 +27,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 8192,
-      "tokens_in": 4589,
-      "tokens_out": 108,
-      "duration_ms": 15514,
-      "repairs": 0
-    },
-    {
-      "role": "causal_strategist",
-      "city": "delhi",
-      "model": "nvidia/nemotron-3-ultra-550b-a55b",
-      "reasoning_budget": 8192,
-      "tokens_in": 4223,
-      "tokens_out": 192,
-      "duration_ms": 8438,
+      "tokens_in": 5408,
+      "tokens_out": 1391,
+      "duration_ms": 30812,
       "repairs": 0
     },
     {
@@ -47,9 +37,9 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 4096,
-      "tokens_in": 3452,
-      "tokens_out": 6343,
-      "duration_ms": 93500,
+      "tokens_in": 3555,
+      "tokens_out": 4728,
+      "duration_ms": 283406,
       "repairs": 0
     },
     {
@@ -57,23 +47,23 @@
       "city": "delhi",
       "model": "nvidia/nemotron-3-ultra-550b-a55b",
       "reasoning_budget": 4096,
-      "tokens_in": 2669,
-      "tokens_out": 1674,
-      "duration_ms": 36718,
+      "tokens_in": 2566,
+      "tokens_out": 2547,
+      "duration_ms": 58921,
       "repairs": 0
     }
   ],
   "totals": {
-    "tokens_in": 33045,
-    "tokens_out": 12745,
-    "total": 45790,
-    "calls": 6
+    "tokens_in": 29285,
+    "tokens_out": 11485,
+    "total": 40770,
+    "calls": 5
   },
   "fixture": true,
   "audit": {
     "passed": true,
-    "briefs_audited": 3,
-    "refs_checked": 30,
-    "audited_at": "2026-07-22T21:07:03Z"
+    "briefs_audited": 2,
+    "refs_checked": 17,
+    "audited_at": "2026-07-22T21:42:29Z"
   }
 }
