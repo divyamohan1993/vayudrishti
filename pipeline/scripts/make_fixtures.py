@@ -509,7 +509,8 @@ def build_manifest(cities: dict[str, dict]) -> ManifestDoc:
             "bbox": list(cfg.bbox), "languages": langs,
             "files": info["files"], "fixture": True, "generated_at": NOW_ISO,
         })
-    return ManifestDoc(generated_at=NOW_ISO, fixture=True, sat_numeric=False, cities=entries)
+    return ManifestDoc(generated_at=NOW_ISO, fixture=True, sat_numeric=False, cities=entries,
+                       agentlog="agentlog.json")
 
 
 def build_receipts() -> ReceiptsDoc:
@@ -608,14 +609,17 @@ def main() -> int:
             "nowcast": "delhi/nowcast.json", "forecast": "delhi/forecast.json",
             "attribution": "delhi/attribution.json", "enforcement": "delhi/enforcement.json",
             "advisories": "delhi/advisories.json", "wards": "delhi/wards.geojson",
+            "roads": "delhi/roads.geojson", "briefs": "delhi/briefs.json",
             "replay_index": "delhi/replay/index.json", "interventions": "delhi/interventions.json",
             "ledger": "delhi/ledger.json"}},
         "mumbai": {"files": {
             "nowcast": "mumbai/nowcast.json", "forecast": "mumbai/forecast.json",
-            "advisories": "mumbai/advisories.json", "wards": "mumbai/wards.geojson"}},
+            "advisories": "mumbai/advisories.json", "wards": "mumbai/wards.geojson",
+            "roads": "mumbai/roads.geojson"}},
         "bengaluru": {"files": {
             "nowcast": "bengaluru/nowcast.json", "forecast": "bengaluru/forecast.json",
-            "advisories": "bengaluru/advisories.json", "wards": "bengaluru/wards.geojson"}},
+            "advisories": "bengaluru/advisories.json", "wards": "bengaluru/wards.geojson",
+            "roads": "bengaluru/roads.geojson"}},
     }
     emit_model(build_manifest(cities), "manifest.json"); written.append("manifest.json")
     emit_model(build_receipts(), "receipts.json"); written.append("receipts.json")
