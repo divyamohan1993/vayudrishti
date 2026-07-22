@@ -16,7 +16,7 @@ export function AqiLegend({
 }) {
   return (
     <div className={className}>
-      <p className="eyebrow mb-2">PM2.5 sub-index (24h) — CPCB</p>
+      <p className="eyebrow mb-2">PM2.5 sub-index (24h) · CPCB</p>
       <ul
         className={cn(
           "gap-x-4 gap-y-1.5",

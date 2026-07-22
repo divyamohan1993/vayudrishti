@@ -4,7 +4,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "VayuDrishti — Urban Air Quality Intelligence",
+    default: "VayuDrishti: Urban Air Quality Intelligence",
     template: "%s · VayuDrishti",
   },
   description:
