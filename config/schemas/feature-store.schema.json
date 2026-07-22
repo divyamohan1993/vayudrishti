@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VayuDrishti hourly feature-store (parquet)",
+  "owner": "vayu-data",
+  "path": "data/feature-store/{city}/hourly.parquet",
+  "grain": "one row per (station_id, ts_utc): measured pollutants plus co-located meteo, satellite, upwind-fire, land-use, and ward at that station-hour. This is the training table; grid-cell features for inference are built on demand via vayu.features.grid_features using the same definitions.",
+  "conventions": {
+    "ts_utc": "tz-aware UTC timestamp (pandas datetime64[ns, UTC] / arrow timestamp[us, tz=UTC]); NOT a string. Storage is UTC; calendar/diurnal features are derived from Asia/Kolkata by the consumer via vayu.timeutils.calendar_features.",
+    "station_id": "string = canonical OpenAQ location id. data.gov.in names are mapped via city station_match.",
+    "satellite_and_fire": "s5p_*, aod550 columns are ALWAYS present; NaN when the GEE numeric path is off. frp_upwind/fire_count_upwind come from zero-auth FIRMS.",
+    "schema_stability": "column set never changes with key state; manifest.sat_numeric flags whether satellite columns carry real values."
+  },
+  "columns": [
+    {"name": "ts_utc", "arrow_type": "timestamp[us, tz=UTC]", "pandas_dtype": "datetime64[ns, UTC]", "unit": "UTC", "nullable": false, "desc": "Observation hour, UTC."},
+    {"name": "station_id", "arrow_type": "string", "pandas_dtype": "string", "nullable": false, "desc": "Canonical OpenAQ location id."},
+    {"name": "lat", "arrow_type": "double", "pandas_dtype": "float64", "unit": "deg", "nullable": false, "desc": "Station latitude EPSG:4326."},
+    {"name": "lon", "arrow_type": "double", "pandas_dtype": "float64", "unit": "deg", "nullable": false, "desc": "Station longitude EPSG:4326."},
+    {"name": "pm25", "arrow_type": "double", "pandas_dtype": "float64", "unit": "ug/m3", "nullable": true, "desc": "PM2.5 measured."},
+    {"name": "pm10", "arrow_type": "double", "pandas_dtype": "float64", "unit": "ug/m3", "nullable": true, "desc": "PM10 measured."},
+    {"name": "no2", "arrow_type": "double", "pandas_dtype": "float64", "unit": "ug/m3", "nullable": true, "desc": "NO2 measured."},
+    {"name": "so2", "arrow_type": "double", "pandas_dtype": "float64", "unit": "ug/m3", "nullable": true, "desc": "SO2 measured."},
+    {"name": "o3", "arrow_type": "double", "pandas_dtype": "float64", "unit": "ug/m3", "nullable": true, "desc": "O3 measured."},
+    {"name": "co", "arrow_type": "double", "pandas_dtype": "float64", "unit": "mg/m3", "nullable": true, "desc": "CO measured (CPCB reports CO in mg/m3)."},
+    {"name": "wind_speed_10m", "arrow_type": "double", "pandas_dtype": "float64", "unit": "m/s", "nullable": true, "desc": "Open-Meteo 10m wind speed."},
+    {"name": "wind_dir_10m", "arrow_type": "double", "pandas_dtype": "float64", "unit": "deg", "nullable": true, "desc": "10m wind direction, the direction wind blows FROM (clockwise from N)."},
+    {"name": "temp_2m", "arrow_type": "double", "pandas_dtype": "float64", "unit": "degC", "nullable": true, "desc": "Open-Meteo 2m temperature."},
+    {"name": "rh_2m", "arrow_type": "double", "pandas_dtype": "float64", "unit": "percent", "nullable": true, "desc": "Open-Meteo 2m relative humidity."},
+    {"name": "precip_mm", "arrow_type": "double", "pandas_dtype": "float64", "unit": "mm", "nullable": true, "desc": "Open-Meteo precipitation."},
+    {"name": "blh_m", "arrow_type": "double", "pandas_dtype": "float64", "unit": "m", "nullable": true, "desc": "Boundary-layer height (Open-Meteo)."},
+    {"name": "s5p_no2", "arrow_type": "double", "pandas_dtype": "float64", "unit": "mol/m2", "nullable": true, "desc": "Sentinel-5P TROPOMI NO2 column (GEE); NaN when off."},
+    {"name": "s5p_so2", "arrow_type": "double", "pandas_dtype": "float64", "unit": "mol/m2", "nullable": true, "desc": "Sentinel-5P SO2 column (GEE); NaN when off."},
+    {"name": "s5p_co", "arrow_type": "double", "pandas_dtype": "float64", "unit": "mol/m2", "nullable": true, "desc": "Sentinel-5P CO column (GEE); NaN when off."},
+    {"name": "s5p_aai", "arrow_type": "double", "pandas_dtype": "float64", "unit": "index", "nullable": true, "desc": "Sentinel-5P aerosol index (GEE); NaN when off."},
+    {"name": "aod550", "arrow_type": "double", "pandas_dtype": "float64", "unit": "unitless", "nullable": true, "desc": "MODIS MAIAC AOD 550nm (GEE MCD19A2); NaN when off."},
+    {"name": "frp_upwind", "arrow_type": "double", "pandas_dtype": "float64", "unit": "MW", "nullable": true, "desc": "Sum FRP of FIRMS fires in the +/-45deg upwind sector, trailing 24h, <=100km."},
+    {"name": "fire_count_upwind", "arrow_type": "int64", "pandas_dtype": "int64", "unit": "count", "nullable": false, "desc": "Count of upwind FIRMS fires (0 when none)."},
+    {"name": "road_density", "arrow_type": "double", "pandas_dtype": "float64", "unit": "km/km2", "nullable": true, "desc": "OSM road length per area in a 500m projected buffer."},
+    {"name": "builtup_frac", "arrow_type": "double", "pandas_dtype": "float64", "unit": "fraction", "nullable": true, "desc": "Built-up land fraction in the 500m buffer (0-1)."},
+    {"name": "industrial_dist_km", "arrow_type": "double", "pandas_dtype": "float64", "unit": "km", "nullable": true, "desc": "Projected distance to nearest OSM industrial land-use."},
+    {"name": "ward_id", "arrow_type": "string", "pandas_dtype": "string", "nullable": false, "desc": "Baked ward id ({city}_{zeropad3}) or {city}_unassigned."}
+  ]
+}

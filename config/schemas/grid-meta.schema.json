@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VayuDrishti grid_meta",
+  "owner": "vayu-data",
+  "note": "Emitted by vayu.grid.grid_meta(bbox).as_dict(); carried in nowcast.json (spec 5.0/8). Cells are 0.01deg squares; origin is the city bbox SW corner floored to 0.01deg; cell_id = {city}_{row}_{col}; row = floor((lat-lat0)/0.01); col = floor((lon-lon0)/0.01).",
+  "type": "object",
+  "required": ["lat0", "lon0", "cell_deg", "crs"],
+  "properties": {
+    "lat0": {"type": "number", "description": "SW origin latitude (floored to 0.01)."},
+    "lon0": {"type": "number", "description": "SW origin longitude (floored to 0.01)."},
+    "cell_deg": {"const": 0.01, "description": "Cell edge length in degrees."},
+    "crs": {"const": "EPSG:4326"}
+  }
+}

@@ -1,0 +1,29 @@
+# Bengaluru — config-only tier (pipeline runs, JSONs publish, map works).
+# Demo moment: "adding a city = one YAML" (Scalability proof).
+name: Bengaluru
+slug: bengaluru
+tier: config_only
+tz: Asia/Kolkata
+utm_epsg: 32643            # UTM zone 43N
+bbox: [77.45, 12.83, 77.79, 13.15]
+centroid: [12.9716, 77.5946]
+
+wards:
+  source: datameet-municipal-spatial-data
+  url: https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Bangalore/BBMP.geojson
+  local_path: data/raw/bengaluru/wards_source.geojson
+  ward_id_field: KGISWardNo       # numeric 1..243
+  ward_id_numeric: true
+  name_field: KGISWardName
+  note: 243 BBMP wards (2023 reorganization). Config-only city; wards unpolished by design.
+
+firms_country: IND
+
+station_match: {}
+openaq_location_ids: []
+
+languages:
+  primary: [en, hi]
+  regional: null            # slide-only (Kannada not verified for this tier)
+
+inventory_refs: []

@@ -1,0 +1,35 @@
+# Delhi — deep tier (all surfaces, full validation receipts, replay).
+name: Delhi
+slug: delhi
+tier: deep
+tz: Asia/Kolkata
+utm_epsg: 32643            # UTM zone 43N (72E-78E) for projected distances/buffers
+# [min_lon, min_lat, max_lon, max_lat] — covers Datameet ward bounds, snapped to 0.01.
+bbox: [76.83, 28.40, 77.35, 28.89]
+centroid: [28.6139, 77.2090]   # [lat, lon] for client-side nearest-city geolocation
+
+wards:
+  source: datameet-municipal-spatial-data
+  url: https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Delhi/Delhi_Wards.geojson
+  local_path: data/raw/delhi/wards_source.geojson
+  ward_id_field: Ward_No          # non-numeric codes (e.g. CANT_1) -> synthesized index
+  ward_id_numeric: false
+  name_field: Ward_Name
+  note: 290 MCD/NDMC/Cantonment wards; Ward_No is a code, ward_id is a stable sorted index.
+
+firms_country: IND
+
+# data.gov.in CPCB station name -> canonical OpenAQ location id.
+# Populated by `vayu ingest --sources openaq` discovery (verified against archive CSV).
+station_match: {}
+openaq_location_ids: []
+
+languages:
+  primary: [en, hi]
+  regional: null            # Delhi advisories in hi/en
+
+inventory_refs:
+  - name: TERI-ARAI 2018 Delhi source apportionment
+    note: Directional sanity reference for attribution (not an accuracy target).
+  - name: SAFAR-India Delhi emissions
+    note: Directional sanity reference.

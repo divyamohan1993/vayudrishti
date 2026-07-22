@@ -1,0 +1,30 @@
+# Mumbai — standard tier (nowcast + forecast + advisories, validated).
+name: Mumbai
+slug: mumbai
+tier: standard
+tz: Asia/Kolkata
+utm_epsg: 32643            # UTM zone 43N
+bbox: [72.77, 18.89, 72.98, 19.28]
+centroid: [19.0760, 72.8777]
+
+wards:
+  source: datameet-municipal-spatial-data
+  url: https://raw.githubusercontent.com/datameet/Municipal_Spatial_Data/master/Mumbai/BMC_Wards.geojson
+  local_path: data/raw/mumbai/wards_source.geojson
+  ward_id_field: gid              # numeric 1..24; native lettered code kept as name
+  ward_id_numeric: true
+  name_field: name                # BMC ward letter (A, B, ... T)
+  note: 24 BMC administrative wards; letter code carried in `name`, gid drives ward_id.
+
+firms_country: IND
+
+station_match: {}
+openaq_location_ids: []
+
+languages:
+  primary: [en, hi]
+  regional: mr              # Marathi advisories
+
+inventory_refs:
+  - name: SAFAR-India Mumbai emissions
+    note: Directional sanity reference.

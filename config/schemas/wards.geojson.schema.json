@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "VayuDrishti baked wards.geojson",
+  "owner": "vayu-data",
+  "path": "web/public/data/{city}/wards.geojson",
+  "note": "Real ward polygons (Datameet) with ward_id baked per spec 5.0. Consumers join on ward_id and never re-derive it. Coordinates rounded to 5 decimals and lightly simplified for payload/git size; visually loss-free at city zoom.",
+  "type": "object",
+  "required": ["type", "features"],
+  "properties": {
+    "type": {"const": "FeatureCollection"},
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "geometry", "properties"],
+        "properties": {
+          "type": {"const": "Feature"},
+          "geometry": {"type": "object", "description": "Polygon or MultiPolygon, EPSG:4326."},
+          "properties": {
+            "type": "object",
+            "required": ["ward_id", "name"],
+            "properties": {
+              "ward_id": {"type": "string", "pattern": "^[a-z]+_(\\d{3,}|unassigned)$", "description": "{city}_{zeropad3(index)}."},
+              "name": {"type": "string", "description": "Human-readable ward name (XSS-untrusted; render as text only)."},
+              "ward_code": {"type": "string", "description": "Native source code (Delhi Ward_No, Mumbai letter, BBMP number)."},
+              "population": {"type": ["number", "null"], "description": "WorldPop 100m (GEE, 2020 vintage) summed over the polygon; null until computed."}
+            }
+          }
+        }
+      }
+    }
+  }
+}
