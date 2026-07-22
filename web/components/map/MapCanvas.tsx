@@ -20,7 +20,7 @@ import type { SatelliteLayer } from "@/lib/store";
 
 const GIBS_HOST = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 const GIBS_LAYERS: Record<Exclude<SatelliteLayer, "off">, { id: string; fmt: string; level: number; opacity: number }> = {
-  no2: { id: "OMI_Nitrogen_Dioxide_Tropospheric_Column", fmt: "png", level: 6, opacity: 0.8 },
+  no2: { id: "OMI_Nitrogen_Dioxide_Tropo_Column", fmt: "png", level: 6, opacity: 0.8 },
   aod: { id: "MODIS_Combined_Value_Added_AOD", fmt: "png", level: 6, opacity: 0.8 },
   viirs: { id: "VIIRS_SNPP_CorrectedReflectance_TrueColor", fmt: "jpg", level: 9, opacity: 0.92 },
 };
@@ -32,7 +32,9 @@ function gibsDateDaysAgo(days: number): string {
 
 function gibsTiles(layer: Exclude<SatelliteLayer, "off">): { url: string; maxzoom: number } {
   const l = GIBS_LAYERS[layer];
-  const date = gibsDateDaysAgo(layer === "viirs" ? 1 : 2);
+  // Per-layer near-real-time latency: VIIRS true-colour is next-day; MODIS AOD
+  // lands at T-2; OMI NO2 processing lags further, so T-3 avoids a fresh-day 404.
+  const date = gibsDateDaysAgo(layer === "viirs" ? 1 : layer === "no2" ? 3 : 2);
   return {
     url: `${GIBS_HOST}/${l.id}/default/${date}/GoogleMapsCompatible_Level${l.level}/{z}/{y}/{x}.${l.fmt}`,
     maxzoom: l.level,

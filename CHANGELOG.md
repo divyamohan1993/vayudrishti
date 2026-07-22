@@ -107,6 +107,11 @@ All notable changes to VayuDrishti are recorded here. Format follows
     that suppressed nothing, so `pnpm lint` reports zero warnings and zero errors.
   - `web/.gitignore`: ignore the local `screenshots/` and `.playwright-mcp/`
     verification artifacts.
+  - `web/components/map/MapCanvas.tsx`: fixed the GIBS NO2 overlay, which returned
+    HTTP 400 on every request. The layer id was `OMI_Nitrogen_Dioxide_Tropospheric_Column`;
+    the real GIBS EPSG:3857 identifier is `OMI_Nitrogen_Dioxide_Tropo_Column`. Also
+    gave OMI NO2 a 3-day lag (its processing trails MODIS AOD) so the freshest day no
+    longer 404s. AOD and VIIRS overlays were already correct; the overlay now returns 200.
   - Verified on the production static export: sample-data banners cleared on every
     surface, the Delhi ward choropleth and the roads layer render (290 wards, 3571
     road lines), replay shows the real Nov-2025 out-of-fold dates behind the
