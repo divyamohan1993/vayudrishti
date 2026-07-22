@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/agentlog.schema.json",
+  "title": "VayuDrishti Agent Log",
+  "description": "Redacted transparency trace for the agentic layer (spec 14, owner: vayu-agents). Global file at web/public/data/agentlog.json (NOT per-city; it cannot ride in per-city manifest.files). Judges see the machinery: per-role model, reasoning budget, token usage, and duration. RAW reasoning is NEVER published (spec 14, acceptance 20); only aggregate counters appear here. 'runs' is the spec per-role array; 'totals' is a convenience roll-up for the web /about-data transparency line.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "model", "runs"],
+  "properties": {
+    "generated_at": { "type": "string", "format": "date-time", "description": "UTC ISO-8601 Z of the last successful agent run." },
+    "fixture": { "type": "boolean", "description": "True when the underlying briefs were built from fixture artifacts." },
+    "stale": { "type": "boolean", "description": "True when the last agent run failed and the previous log was kept / an empty run set emitted (spec 14 failure semantics)." },
+    "model": { "type": "string", "minLength": 1, "maxLength": 120, "description": "Model id used across roles, e.g. nvidia/nemotron-3-ultra-550b-a55b." },
+    "runs": {
+      "type": "array",
+      "description": "One entry per role invocation (a repaired role may appear more than once, or carry a repairs count). Ordered by execution.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["role", "model", "reasoning_budget", "tokens_in", "tokens_out", "duration_ms"],
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": ["situation_analyst", "causal_strategist", "action_drafter", "adversarial_verifier"],
+            "description": "Agent role (spec 14). The deterministic digest and resolver are not LLM roles and are not logged here."
+          },
+          "city": { "type": "string", "pattern": "^[a-z]+$", "description": "City slug this invocation ran for (roles run per city)." },
+          "model": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "reasoning_budget": { "type": "integer", "minimum": 0, "maximum": 65536, "description": "reasoning_budget ceiling for this role (Analyst ~8k, Strategist ~8k, Drafter ~4k, Verifier ~4k)." },
+          "tokens_in": { "type": "integer", "minimum": 0, "description": "Prompt tokens billed for this invocation (includes any repair turns folded in)." },
+          "tokens_out": { "type": "integer", "minimum": 0, "description": "Completion tokens (reasoning + visible)." },
+          "duration_ms": { "type": "integer", "minimum": 0 },
+          "repairs": { "type": "integer", "minimum": 0, "maximum": 2, "description": "Repair rounds consumed by this role (bounded at 2, spec 14)." }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tokens_in", "tokens_out", "total", "calls"],
+      "properties": {
+        "tokens_in": { "type": "integer", "minimum": 0 },
+        "tokens_out": { "type": "integer", "minimum": 0 },
+        "total": { "type": "integer", "minimum": 0 },
+        "calls": { "type": "integer", "minimum": 0, "description": "Total NIM chat calls this run (bounded per publish, spec 14)." }
+      },
+      "description": "Roll-up across all runs for the single-line transparency display."
+    }
+  }
+}

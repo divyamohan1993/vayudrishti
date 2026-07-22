@@ -41,6 +41,11 @@ class Settings(BaseSettings):
     firms_map_key: str | None = Field(default=None, alias="FIRMS_MAP_KEY")
     earthdata_token: str | None = Field(default=None, alias="EARTHDATA_TOKEN")
 
+    # NVIDIA NIM key for the agentic Action-Brief layer (spec 14, owner: vayu-agents).
+    # Hosted Nemotron endpoint; pipeline-side only, never logged or published. Absent =>
+    # the briefs stage degrades gracefully (keeps previous briefs, marks stale, exit 0).
+    nvidia_api_key: str | None = Field(default=None, alias="NVIDIA_API_KEY")
+
     # GEE service account. Provide EITHER the JSON inline (raw or base64, for CI)
     # OR a path to the key file (local dev). The service-account email is read
     # from the JSON's client_email; the explicit override is optional.

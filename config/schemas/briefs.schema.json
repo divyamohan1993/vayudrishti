@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://vayudrishti.dmj.one/schemas/briefs.schema.json",
+  "title": "VayuDrishti Action Briefs",
+  "description": "Verified, evidence-cited Action Briefs produced by the agentic layer (spec 14, owner: vayu-agents). Per-city file at web/public/data/{city}/briefs.json. Every brief is the output of Situation Analyst -> Causal Strategist -> Action Drafter -> Adversarial Verifier, then a DETERMINISTIC resolver gate. Contract discipline: numbers live ONLY in structured resolved fields (expected_effect, evidence_refs[].value); headline/situation/action are qualitative plain text. Every evidence_ref path resolves against a published artifact via the dotted-path resolver, and its value is the artifact's own ground-truth value (the pipeline overwrites the model's asserted value with the resolved one). Unresolvable or mismatched refs cause the brief to be repaired (<=2) then dropped, so only verified briefs are published (acceptance 18). All strings are HTML/control-char sanitized (spec 7); the publish gate greps for </think> and key material (acceptance 20).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["generated_at", "model", "briefs"],
+  "properties": {
+    "generated_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "UTC ISO-8601 Z of the last SUCCESSFUL generation (spec 5.0). On a stale keep this stays at the last good run's time."
+    },
+    "fixture": {
+      "type": "boolean",
+      "description": "True when built from fixture/sample artifacts; propagated from the source artifacts' fixture flag. Consumers show a 'sample data' banner."
+    },
+    "stale": {
+      "type": "boolean",
+      "description": "True when the agent run failed and the previous briefs were kept (or an empty envelope emitted on cold start). Drives the web 'stale briefs' banner. Absent or false on a fresh successful run (spec 14 failure semantics, acceptance 19)."
+    },
+    "model": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 120,
+      "description": "Model id used, e.g. nvidia/nemotron-3-ultra-550b-a55b. Disclosed for transparency (acceptance 20)."
+    },
+    "briefs": {
+      "type": "array",
+      "description": "Ranked verified briefs (highest priority first). May be empty (no actionable compound risk, or a cold-start stale envelope).",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "headline",
+          "situation",
+          "action",
+          "target_wards",
+          "trigger_window",
+          "expected_effect",
+          "owner",
+          "advisory_langs",
+          "evidence_refs",
+          "verifier"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[a-z0-9][a-z0-9-]{1,63}$",
+            "description": "Stable slug id, e.g. delhi-2025-11-08-nw-stubble-01."
+          },
+          "headline": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160,
+            "description": "Qualitative one-line summary, plain text. Web MAY interpolate resolved values into a display string; the stored text carries no unverified numbers."
+          },
+          "situation": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000,
+            "description": "Qualitative compound-risk narrative, plain text. Quantities belong in expected_effect / evidence_refs, not here."
+          },
+          "action": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 600,
+            "description": "The specific recommended action, plain text, rendered as-is."
+          },
+          "action_code": {
+            "type": ["string", "null"],
+            "enum": [
+              "deploy_water_sprinkling",
+              "halt_construction_dust",
+              "intensify_mechanized_sweeping",
+              "reroute_divert_heavy_traffic",
+              "inspect_industrial_emissions",
+              "ban_open_biomass_burning",
+              "issue_public_health_advisory",
+              "monitor_no_action",
+              null
+            ],
+            "description": "Optional enforcement-taxonomy key (spec 5.4) for a localized label/icon. Display-only; the verifier NEVER keys off it. May be null when no single taxonomy action fits."
+          },
+          "target_wards": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 60,
+            "items": { "type": "string", "pattern": "^[a-z]+_[a-z0-9]+$" },
+            "description": "ward_id list (convention spec 5.0); web joins to wards.geojson and highlights."
+          },
+          "trigger_window": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["start_utc", "end_utc"],
+            "properties": {
+              "start_utc": { "type": "string", "format": "date-time" },
+              "end_utc": { "type": "string", "format": "date-time" }
+            },
+            "description": "Action window in UTC (spec 5.0 storage); web displays IST with an 'IST' suffix. Content gate enforces start_utc <= end_utc."
+          },
+          "expected_effect": {
+            "type": ["object", "null"],
+            "additionalProperties": false,
+            "required": ["ugm3", "ci_low", "ci_high", "basis_ref"],
+            "properties": {
+              "ugm3": { "type": "number", "description": "Expected PM2.5 effect in ug/m3 (sign per convention: negative = reduction). Resolved ground truth from the Intervention Ledger / interventions effects." },
+              "ci_low": { "type": "number" },
+              "ci_high": { "type": "number" },
+              "basis_ref": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300,
+                "description": "Dotted-path into ledger.json or interventions.json for the effect basis, e.g. ledger.wards[ward_id=delhi_042].effect_ugm3. Resolves via the resolver; external citations (CAQM orders, GEMM) are reachable through ledger.citations / receipts, not duplicated here."
+              }
+            },
+            "description": "Quantified expected effect with CI, or null when the brief carries no quantified effect (e.g. a pure public-health advisory). Content gate enforces ci_low <= ugm3 <= ci_high."
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120,
+            "description": "Owner agency responsible for the action, plain text (e.g. MCD, DPCC, Delhi Traffic Police)."
+          },
+          "advisory_langs": {
+            "type": "array",
+            "minItems": 1,
+            "maxItems": 4,
+            "items": { "type": "string", "pattern": "^[a-z]{2}$" },
+            "description": "ISO-639-1 codes for advisory dissemination (spec 5.5), e.g. [en, hi]."
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Machine-resolvable citations. Every ref's path resolves against a published artifact; value is the artifact's ground-truth value (pipeline-overwritten). At least one ref per brief (acceptance 18).",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["label", "artifact", "path", "value", "resolved"],
+              "properties": {
+                "label": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Human label for the evidence chip, plain text (e.g. '24h forecast p90, ward delhi_042')."
+                },
+                "artifact": {
+                  "type": "string",
+                  "enum": ["nowcast", "forecast", "attribution", "enforcement", "ledger", "interventions", "receipts"],
+                  "description": "Published artifact this ref resolves into (per-city file, except receipts which is global)."
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 300,
+                  "description": "Dotted-path with equality-predicate selectors, e.g. forecast.wards[ward_id=delhi_042].series[h=24].pm25_p90. Grammar: keys and [id_field=value] / [numeric_field=value] selectors and [index]; nothing else (LLM output is untrusted)."
+                },
+                "value": {
+                  "type": ["number", "string", "boolean", "null"],
+                  "description": "Resolved ground-truth value at path (pipeline overwrites the model's asserted value with the artifact's own)."
+                },
+                "resolved": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Always true in published output; an unresolved ref causes the brief to be dropped."
+                }
+              }
+            }
+          },
+          "ledger_ref": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "stage_transition": { "type": "string", "minLength": 1, "maxLength": 120 },
+              "scenario": { "type": "string", "minLength": 1, "maxLength": 120 }
+            },
+            "description": "Optional linkage for the web /ledger slot: which Ledger stage_transition and/or counterfactual scenario this brief draws on."
+          },
+          "verifier": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["passed", "notes"],
+            "properties": {
+              "passed": {
+                "type": "boolean",
+                "description": "Adversarial Verifier verdict. A published brief always has passed=true AND cleared the deterministic resolver (the authoritative gate); the LLM verifier is advisory."
+              },
+              "notes": {
+                "type": "string",
+                "maxLength": 500,
+                "description": "Verifier notes, plain text (may be empty)."
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
