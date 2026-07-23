@@ -1,4 +1,4 @@
-# vayu — VayuDrishti pipeline
+# vayu: VayuDrishti pipeline
 
 The data engine behind VayuDrishti. It turns real, free public air-quality and
 weather feeds into a validated feature store and the JSON that the web app reads.
@@ -20,13 +20,13 @@ subcommands by dropping modules into `src/vayu/commands/` (auto-discovered).
 
 ## Layout
 
-- `src/vayu/grid.py` — frozen 0.01 deg grid conventions (spec 5.0).
-- `src/vayu/upwind.py` — upwind FIRMS sector (spec 5.0).
-- `src/vayu/timeutils.py` — IST to UTC at ingest, Asia/Kolkata calendar features.
-- `src/vayu/geo.py` — ward_id baking, station_match, per-city UTM.
-- `src/vayu/ingest/*` — one module per real source.
-- `src/vayu/features/*` — feature-store builder.
-- `src/vayu/commands/*` — thin CLI wrappers (auto-discovered registry).
+- `src/vayu/grid.py`: frozen 0.01 deg grid conventions (spec 5.0).
+- `src/vayu/upwind.py`: upwind FIRMS sector (spec 5.0).
+- `src/vayu/timeutils.py`: IST to UTC at ingest, Asia/Kolkata calendar features.
+- `src/vayu/geo.py`: ward_id baking, station_match, per-city UTM.
+- `src/vayu/ingest/*`: one module per real source.
+- `src/vayu/features/*`: feature-store builder.
+- `src/vayu/commands/*`: thin CLI wrappers (auto-discovered registry).
 
 ## Data sources (all real, all free)
 
