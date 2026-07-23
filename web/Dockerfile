@@ -4,7 +4,9 @@
 FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
-COPY package.json pnpm-lock.yaml ./
+# pnpm-workspace.yaml carries the declared build-script policy (sharp and
+# unrs-resolver ignored: the static export needs neither native build).
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 # The lockfile is pinned and audited in CI (gitleaks, pnpm audit); pnpm 10's
 # minimum-release-age gate would reject entries younger than its window here.
 RUN pnpm config set minimumReleaseAge 0 && pnpm install --frozen-lockfile
