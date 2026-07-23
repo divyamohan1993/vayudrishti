@@ -14,7 +14,7 @@
     "@deck.gl/layers": "^9",
     "@deck.gl/mapbox": "^9",
     "maplibre-gl": "^5",
-    "next": "^15",
+    "next": "^16",
     "pmtiles": "^4",
     "react": "^19",
     "react-dom": "^19",
