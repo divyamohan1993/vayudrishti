@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import math
-
 import pytest
 
 from vayu.aqi import (
@@ -94,7 +92,7 @@ class TestCategories:
         assert category_for_index(500) == "Severe"
 
     def test_categories_are_from_constants(self):
-        for _, name in [(0, "Good"), (500, "Severe")]:
+        for _, _name in [(0, "Good"), (500, "Severe")]:
             pass
         assert set(AQI_CATEGORIES) == {
             "Good", "Satisfactory", "Moderate", "Poor", "Very Poor", "Severe",

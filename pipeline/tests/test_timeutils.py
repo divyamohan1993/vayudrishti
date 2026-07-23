@@ -1,6 +1,6 @@
 """IST<->UTC conversion and calendar features (spec 5.0 boundary test)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from vayu import timeutils
 
@@ -20,7 +20,7 @@ def test_no_dst_offset_is_constant_across_seasons():
 
 
 def test_ist_naive_to_utc_rejects_aware():
-    aware = datetime(2025, 2, 1, 0, 0, tzinfo=timezone.utc)
+    aware = datetime(2025, 2, 1, 0, 0, tzinfo=UTC)
     try:
         timeutils.ist_naive_to_utc(aware)
     except ValueError:
@@ -41,7 +41,7 @@ def test_parse_iso_with_z():
 
 def test_calendar_features_use_ist_local_time():
     # 2025-11-15 18:30 UTC == 2025-11-16 00:00 IST -> hour 0, next day.
-    ts = datetime(2025, 11, 15, 18, 30, tzinfo=timezone.utc)
+    ts = datetime(2025, 11, 15, 18, 30, tzinfo=UTC)
     f = timeutils.calendar_features(ts)
     assert f["hour_ist"] == 0
     assert f["month_ist"] == 11

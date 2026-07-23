@@ -85,7 +85,7 @@ def normalised_station_frame(parquet_df: pd.DataFrame, *, n_samples: int = 200, 
                              seed: int = 0) -> pd.DataFrame:
     """Per-station weather-normalised PM2.5 (for per-ward event-study aggregation)."""
     out = []
-    for sid, g in parquet_df.groupby("station_id"):
+    for _sid, g in parquet_df.groupby("station_id"):
         g = g.sort_values("ts_utc")
         if g["pm25"].notna().sum() < 200:
             continue

@@ -1,10 +1,10 @@
 """Upwind FIRMS sector (spec 5.0). Backs acceptance 10 (stubble bearing)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from vayu import upwind
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def test_haversine_known_distance():

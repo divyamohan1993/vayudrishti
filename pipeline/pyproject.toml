@@ -44,7 +44,7 @@ build-backend = "hatchling.build"
 packages = ["src/vayu"]
 
 [tool.ruff]
-line-length = 100
+line-length = 120
 target-version = "py312"
 
 [tool.ruff.lint]
@@ -57,3 +57,11 @@ addopts = "-q"
 [tool.mypy]
 python_version = "3.12"
 ignore_missing_imports = true
+
+
+[tool.ruff.lint.per-file-ignores]
+# Dev-only fixture generator (superseded by real publish) and long literal
+# prose strings (citations, honesty notes) where wrapping harms readability.
+"scripts/make_fixtures.py" = ["E501", "E702"]
+"src/vayu/publish/receipts_build.py" = ["E501"]
+"src/vayu/publish/ledger_build.py" = ["E501"]

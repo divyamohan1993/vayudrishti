@@ -23,7 +23,7 @@ def test_lettered_ward_ids_get_stable_synthesized_index():
     geoms = [box(i, 0, i + 1, 1) for i in range(4)]
     gdf = _wards("ward", codes, geoms)
     out = geo.assign_ward_ids(gdf, "mumbai", "ward", numeric=False)
-    by_code = dict(zip(out["ward_code"], out["ward_id"]))
+    by_code = dict(zip(out["ward_code"], out["ward_id"], strict=False))
     # sorted(["A","B","F/N","F/S"]) -> A=1, B=2, F/N=3, F/S=4
     assert by_code == {
         "A": "mumbai_001",
@@ -39,8 +39,8 @@ def test_lettered_index_is_deterministic_across_input_order():
     geoms = [box(i, 0, i + 1, 1) for i in range(4)]
     out_a = geo.assign_ward_ids(_wards("w", codes_a, geoms), "mumbai", "w", numeric=False)
     out_b = geo.assign_ward_ids(_wards("w", codes_b, geoms), "mumbai", "w", numeric=False)
-    assert dict(zip(out_a["ward_code"], out_a["ward_id"])) == dict(
-        zip(out_b["ward_code"], out_b["ward_id"])
+    assert dict(zip(out_a["ward_code"], out_a["ward_id"], strict=False)) == dict(
+        zip(out_b["ward_code"], out_b["ward_id"], strict=False)
     )
 
 

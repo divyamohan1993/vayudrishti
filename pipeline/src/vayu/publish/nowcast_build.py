@@ -63,7 +63,9 @@ def _cell_features(gf: pd.DataFrame, df: pd.DataFrame, ts) -> pd.DataFrame:
     if len(cur) >= 2:
         clat, clon, cval = cur["lat"].to_numpy(), cur["lon"].to_numpy(), cur["pm25"].to_numpy()
         gf["idw_pm25"] = idw_predict(clat, clon, cval, lat, lon)
-        gf["nearest_dist_km"] = [float(np.min(haversine_km(clat, clon, la, lo))) for la, lo in zip(lat, lon)]
+        gf["nearest_dist_km"] = [
+        float(np.min(haversine_km(clat, clon, la, lo))) for la, lo in zip(lat, lon, strict=False)
+    ]
         gf["station_count"] = len(cur)
     else:
         gf["idw_pm25"] = np.nan
@@ -127,7 +129,8 @@ def _ward_rollup(city: str, gf: pd.DataFrame, p50, p90, cell_24h) -> list[dict]:
     for f in features:
         try:
             geoms.append(shape(f["geometry"]))
-            meta.append((f["properties"]["ward_id"], sanitize_text(str(f["properties"].get("name") or f["properties"]["ward_id"]))))
+            nm = sanitize_text(str(f["properties"].get("name") or f["properties"]["ward_id"]))
+            meta.append((f["properties"]["ward_id"], nm))
         except Exception:  # pragma: no cover
             continue
     tree = STRtree(geoms)

@@ -1,13 +1,13 @@
 """Feature-store assembly: schema conformance + batch upwind (network-free)."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 import pandas as pd
 
 from vayu.features import build
 
-UTC = timezone.utc
+UTC = UTC
 
 
 def _minimal_df():

@@ -21,12 +21,11 @@ from __future__ import annotations
 import hashlib
 import json
 import math
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta, timezone
 
 from vayu.aqi import breakpoint_table_rows, category_for_index, sub_index
 from vayu.cityconfig import load_city
-from vayu.constants import ENFORCEMENT_ACTIONS, TIER_CONFIG_TO_MANIFEST
+from vayu.constants import TIER_CONFIG_TO_MANIFEST
 from vayu.grid import enumerate_cells, grid_meta
 from vayu.publish.contentmodels import (
     AdvisoriesDoc,
@@ -43,7 +42,7 @@ from vayu.publish.contentmodels import (
 from vayu.publish.emit import emit_model, web_data_dir
 from vayu.publish.sanitize import sanitize_text
 
-UTC = timezone.utc
+UTC = UTC
 NOW = datetime(2026, 7, 22, 6, 0, 0, tzinfo=UTC)
 NOW_ISO = NOW.strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -230,7 +229,7 @@ def build_attribution(city: str, wards: list[dict]) -> AttributionDoc:
         prof = _SHARE_PROFILES[int(unit_noise(w["ward_id"] + "prof") * len(_SHARE_PROFILES)) % len(_SHARE_PROFILES)]
         jitter = [max(0.02, p * (1 + 0.15 * signed_noise(w["ward_id"] + str(i)))) for i, p in enumerate(prof)]
         total = sum(jitter)
-        shares = {k: round(v / total, 3) for k, v in zip(
+        shares = {k: round(v / total, 3) for k, v in zip(  # noqa: B905
             ("traffic", "industry", "biomass", "dust", "residential_other"), jitter)}
         # fix rounding drift onto the largest share
         drift = round(1.0 - sum(shares.values()), 3)

@@ -11,14 +11,12 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pandas as pd
-
 from vayu.aqi import breakpoint_table_rows
 from vayu.logging_setup import get_logger
 from vayu.models.attribution import directional_checks
 from vayu.models.run import load_feature_store, metrics_path
 from vayu.publish.contentmodels import ReceiptsDoc
-from vayu.publish.emit import emit_model, web_data_dir
+from vayu.publish.emit import emit_model
 from vayu.publish.ledger_build import ASSUMPTIONS
 from vayu.publish.sanitize import sanitize_text
 from vayu.settings import get_settings

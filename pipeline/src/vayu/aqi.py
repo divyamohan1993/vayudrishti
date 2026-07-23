@@ -228,7 +228,7 @@ def breakpoint_table_rows() -> list[dict]:
     rows: list[dict] = []
     for pollutant, bands in BREAKPOINTS.items():
         unit = "mg/m3" if pollutant == "co" else "ug/m3"
-        for (lo, hi, ilo, ihi), category in zip(bands, AQI_CATEGORIES):
+        for (lo, hi, ilo, ihi), category in zip(bands, AQI_CATEGORIES, strict=False):
             rows.append(
                 {
                     "pollutant": pollutant,

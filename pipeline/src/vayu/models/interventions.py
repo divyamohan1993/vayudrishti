@@ -13,7 +13,7 @@ Real CAQM calendar from config/interventions/{city}.yaml; zero invented dates.
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
@@ -37,7 +37,7 @@ BLOCK = 3
 
 
 def _to_utc(ist_str: str) -> datetime:
-    return datetime.strptime(ist_str, "%Y-%m-%d %H:%M").replace(tzinfo=IST).astimezone(timezone.utc)
+    return datetime.strptime(ist_str, "%Y-%m-%d %H:%M").replace(tzinfo=IST).astimezone(UTC)
 
 
 def load_grap_calendar(city: str = "delhi") -> tuple[dict, list[dict]]:

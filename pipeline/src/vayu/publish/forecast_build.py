@@ -23,7 +23,7 @@ from vayu.aqi import category_for_index, sub_index
 from vayu.cityconfig import load_city
 from vayu.logging_setup import get_logger
 from vayu.models.baseline_idw import idw_predict
-from vayu.models.forecast import HORIZONS, _MET, build_ward_hourly, train_forecast
+from vayu.models.forecast import HORIZONS, build_ward_hourly, train_forecast
 from vayu.models.run import load_feature_store
 from vayu.publish.contentmodels import ForecastDoc
 from vayu.publish.emit import emit_model, web_data_dir
@@ -136,7 +136,7 @@ def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, origin=N
     frp = float(cur["frp_upwind"].mean()) if cur["frp_upwind"].notna().any() else 0.0
 
     wards = []
-    for ward_id, (lat, lon, name) in centroids.items():
+    for ward_id, (_lat, _lon, name) in centroids.items():
         h_off = hist.get(ward_id, {})
         if not any(np.isfinite(v) for v in h_off.values()):
             continue  # no recent history at all for this ward

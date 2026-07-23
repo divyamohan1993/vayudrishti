@@ -12,7 +12,6 @@ from __future__ import annotations
 import json
 
 import numpy as np
-import pandas as pd
 
 from vayu.logging_setup import get_logger
 from vayu.models import deweather, gemm, interventions
