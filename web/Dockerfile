@@ -5,7 +5,9 @@ FROM node:22-alpine AS build
 WORKDIR /app
 RUN corepack enable
 COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --frozen-lockfile
+# The lockfile is pinned and audited in CI (gitleaks, pnpm audit); pnpm 10's
+# minimum-release-age gate would reject entries younger than its window here.
+RUN pnpm config set minimumReleaseAge 0 && pnpm install --frozen-lockfile
 COPY . .
 RUN pnpm build
 
