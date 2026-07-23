@@ -140,17 +140,21 @@ def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, origin=N
         h_off = hist.get(ward_id, {})
         if not any(np.isfinite(v) for v in h_off.values()):
             continue  # no recent history at all for this ward
-        series = []
+        series, valid = [], True
         for horizon in HORIZONS:
             feat = _row(h_off, origin, horizon, meteo, frp)
             p50, p90 = models[horizon].predict(pd.DataFrame([feat]))
-            v50 = float(p50[0])
+            v50, v90 = float(p50[0]), float(max(p90[0], p50[0]))
+            if not (np.isfinite(v50) and np.isfinite(v90)):
+                valid = False  # skip a ward with any non-finite horizon rather than emit NaN
+                break
             si = sub_index("pm25", v50) or 0
             series.append({
-                "h": horizon, "pm25_p50": round(v50, 1), "pm25_p90": round(float(max(p90[0], v50)), 1),
+                "h": horizon, "pm25_p50": round(v50, 1), "pm25_p90": round(v90, 1),
                 "subindex24h": si, "category": category_for_index(si), "confidence": _CONF[horizon],
             })
-        wards.append({"ward_id": ward_id, "name": name, "series": series})
+        if valid:
+            wards.append({"ward_id": ward_id, "name": name, "series": series})
 
     doc = ForecastDoc(generated_at=gen, horizons_h=list(HORIZONS), wards=wards)
     log.info("forecast_pub.built", city=city, wards=len(wards))

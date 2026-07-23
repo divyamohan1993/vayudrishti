@@ -108,10 +108,13 @@ def build(city: str = "delhi", *, train_df: pd.DataFrame | None = None, ts=None,
     meta = grid_meta(cfg.bbox_tuple)
     grid = []
     for i in range(len(gf)):
+        v50, v90 = float(p50[i]), float(max(p90[i], p50[i]))
+        if not (np.isfinite(v50) and np.isfinite(v90)):
+            continue  # no valid prediction for this cell -> honest gap, never emit NaN
         si = sub_index("pm25", float(cell_24h[i])) or 0
         grid.append({
             "cell_id": gf["cell_id"].iat[i], "row": int(gf["row"].iat[i]), "col": int(gf["col"].iat[i]),
-            "pm25_p50": round(float(p50[i]), 1), "pm25_p90": round(float(max(p90[i], p50[i])), 1),
+            "pm25_p50": round(v50, 1), "pm25_p90": round(v90, 1),
             "subindex24h": si, "category": category_for_index(si),
         })
 
@@ -147,12 +150,14 @@ def _ward_rollup(city: str, gf: pd.DataFrame, p50, p90, cell_24h) -> list[dict]:
     for gi, cells in bucket.items():
         ward_id, name = meta[gi]
         idx = np.array(cells)
+        p50m, p90m = float(np.nanmean(p50[idx])), float(np.nanmean(p90[idx]))
+        if not (np.isfinite(p50m) and np.isfinite(p90m)):
+            continue  # ward with no valid cell prediction -> omit rather than emit NaN
         si = sub_index("pm25", float(np.nanmean(cell_24h[idx]))) or 0
         nd = float(np.nanmin(nearest[idx])) if np.isfinite(nearest[idx]).any() else float("nan")
         rows.append({
             "ward_id": ward_id, "name": name,
-            "pm25_p50": round(float(np.mean(p50[idx])), 1),
-            "pm25_p90": round(float(max(np.mean(p90[idx]), np.mean(p50[idx]))), 1),
+            "pm25_p50": round(p50m, 1), "pm25_p90": round(max(p90m, p50m), 1),
             "subindex24h": si, "category": category_for_index(si), "confidence": _confidence(nd),
         })
     return rows

@@ -78,7 +78,9 @@ def city_normalised_daily(parquet_df: pd.DataFrame, *, n_samples: int = 300, rou
     hourly["date"] = ts.dt.tz_convert("Asia/Kolkata").dt.date
     daily = hourly.groupby("date").agg(pm25_raw=("pm25", "mean"),
                                        pm25_normalized=("pm25_normalized", "mean")).reset_index()
-    return daily
+    # Drop days with no valid raw PM2.5 (splice edges / live-layer hours with all-NaN
+    # station values): a gap in the ribbon is honest; a fabricated value is not.
+    return daily.dropna(subset=["pm25_raw", "pm25_normalized"]).reset_index(drop=True)
 
 
 def normalised_station_frame(parquet_df: pd.DataFrame, *, n_samples: int = 200, rounds: int = 250,

@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from vayu.models.deweather import normalise, train_deweather
+from vayu.models.deweather import city_normalised_daily, normalise, train_deweather
 
 
 def make_weather_driven(days: int = 40, seed: int = 0) -> pd.DataFrame:
@@ -34,6 +34,19 @@ def test_normalise_reduces_weather_signal():
     assert np.isfinite(norm).all()
     assert (norm >= 0).all()
     assert norm.shape == (len(df),)
+
+
+def test_city_daily_drops_nan_holed_days():
+    # Regression: a freshly-extended parquet has splice-edge / live hours with all-NaN
+    # station PM2.5. The daily ribbon must OMIT those days (honest gap), never emit NaN,
+    # so the content gate does not reject the interventions series.
+    df = make_weather_driven(days=20)
+    hole = df["ts_utc"] >= df["ts_utc"].max() - pd.Timedelta(hours=48)
+    df.loc[hole, "pm25"] = np.nan  # last two days: no valid raw PM2.5
+    daily = city_normalised_daily(df, n_samples=40, rounds=60)
+    assert daily["pm25_raw"].notna().all()
+    assert daily["pm25_normalized"].notna().all()
+    assert len(daily) >= 15  # the valid days are retained
 
 
 def test_normalise_preserves_level_roughly():
