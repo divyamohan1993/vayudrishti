@@ -28,7 +28,7 @@ jobs:
     # Demo freeze: skip the ENTIRE job when the repo variable is 1.
     if: ${{ vars.DEMO_FREEZE != '1' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 40   # publish (<15m budget) + briefs (<=10m) + gate + commit
+    timeout-minutes: 150  # cold-start full backfill can be long; warm runs are minutes (publish keeps its own <15m budget)
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,6 +61,33 @@ jobs:
             done
           done
           echo "GEE_SERVICE_ACCOUNT_JSON_PATH=$KEY_FILE" >> "$GITHUB_ENV"
+
+      - name: Restore data stores (raw cache + feature parquets)
+        # The runner is stateless and data/ is gitignored, so the feature store
+        # must persist via the Actions cache. Per-run key + prefix restore means
+        # every run restores the newest snapshot and saves its own.
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: |
+            data/raw
+            data/feature-store
+          key: vayu-data-${{ github.run_id }}
+          restore-keys: |
+            vayu-data-
+
+      - name: Ingest + features (incremental on warm cache, full backfill cold)
+        working-directory: pipeline
+        env:
+          DATA_GOV_IN_API_KEY: ${{ secrets.DATA_GOV_IN_API_KEY }}
+          OPENAQ_API_KEY: ${{ secrets.OPENAQ_API_KEY }}
+          EARTHDATA_TOKEN: ${{ secrets.EARTHDATA_TOKEN }}
+          FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+          GEE_PROJECT: ${{ vars.GEE_PROJECT }}
+        run: |
+          start=$(date +%s)
+          uv run vayu ingest --city all
+          uv run vayu features --city all
+          echo "ingest+features wall-clock: $(( $(date +%s) - start ))s"
 
       - name: Publish all cities from real sources
         working-directory: pipeline
