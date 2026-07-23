@@ -9,6 +9,7 @@ few days' lag, so the last ~2 days are refetched).
 from __future__ import annotations
 
 import time
+from datetime import date, timedelta
 from pathlib import Path
 
 import pandas as pd
@@ -20,6 +21,48 @@ from vayu.timeutils import now_utc
 log = get_logger("ingest.openmeteo")
 
 ARCHIVE_URL = "https://archive-api.open-meteo.com/v1/archive"
+REQUEST_TIMEOUT = 120
+RETRYABLE_STATUS = {429, 500, 502, 503, 504}
+ARCHIVE_CHUNK_DAYS = 92  # keep each archive request small enough to never hit the timeout
+
+
+def _request_json(url: str, params: dict, *, retries: int = 5) -> dict | list:
+    """GET JSON with backoff on rate limits, 5xx, and network timeouts.
+
+    A read/connect timeout on a slow runner previously escaped the loop and crashed
+    the whole refresh; it is now retried like a 429/504.
+    """
+    delay = 5.0
+    last_exc: Exception | None = None
+    for attempt in range(retries):
+        try:
+            resp = requests.get(
+                url, params=params, timeout=REQUEST_TIMEOUT, headers={"User-Agent": "vayu"}
+            )
+            if resp.status_code in RETRYABLE_STATUS:
+                log.warning("openmeteo.retry_status", status=resp.status_code, attempt=attempt)
+                time.sleep(delay)
+                delay *= 1.7
+                continue
+            resp.raise_for_status()
+            return resp.json()
+        except (requests.Timeout, requests.ConnectionError) as exc:
+            last_exc = exc
+            log.warning("openmeteo.retry_net", error=type(exc).__name__, attempt=attempt)
+            time.sleep(delay)
+            delay *= 1.7
+    if last_exc is not None:
+        raise last_exc
+    raise requests.HTTPError(f"open-meteo request failed after {retries} retries: {url}")
+
+
+def _date_chunks(start_date: str, end_date: str, days: int = ARCHIVE_CHUNK_DAYS):
+    cur = date.fromisoformat(start_date)
+    end = date.fromisoformat(end_date)
+    while cur <= end:
+        stop = min(end, cur + timedelta(days=days - 1))
+        yield cur.isoformat(), stop.isoformat()
+        cur = stop + timedelta(days=1)
 FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
 HOURLY_VARS = [
     "wind_speed_10m",
@@ -50,18 +93,23 @@ def _parse_hourly(payload: dict) -> pd.DataFrame:
 
 
 def fetch_archive(lat: float, lon: float, start_date: str, end_date: str) -> pd.DataFrame:
-    params = {
-        "latitude": round(lat, 4),
-        "longitude": round(lon, 4),
-        "start_date": start_date,
-        "end_date": end_date,
-        "hourly": ",".join(HOURLY_VARS),
-        "wind_speed_unit": "ms",
-        "timezone": "UTC",
-    }
-    resp = requests.get(ARCHIVE_URL, params=params, timeout=90, headers={"User-Agent": "vayu"})
-    resp.raise_for_status()
-    return _parse_hourly(resp.json())
+    """ERA5 archive hourly meteo. Long spans are split into ~3-month requests so a
+    single call never approaches the timeout; each chunk retries on timeout/5xx/429."""
+    frames = []
+    for chunk_start, chunk_end in _date_chunks(start_date, end_date):
+        params = {
+            "latitude": round(lat, 4),
+            "longitude": round(lon, 4),
+            "start_date": chunk_start,
+            "end_date": chunk_end,
+            "hourly": ",".join(HOURLY_VARS),
+            "wind_speed_unit": "ms",
+            "timezone": "UTC",
+        }
+        frames.append(_parse_hourly(_request_json(ARCHIVE_URL, params)))
+    if not frames:
+        return pd.DataFrame(columns=["ts_utc", *METEO_COLS])
+    return pd.concat(frames, ignore_index=True).drop_duplicates("ts_utc").reset_index(drop=True)
 
 
 def fetch_forecast(
@@ -77,17 +125,7 @@ def fetch_forecast(
         "forecast_days": forecast_days,
         "past_days": past_days,
     }
-    delay = 8.0
-    for _ in range(4):
-        resp = requests.get(FORECAST_URL, params=params, timeout=60, headers={"User-Agent": "vayu"})
-        if resp.status_code == 429:
-            time.sleep(delay)
-            delay *= 1.7
-            continue
-        resp.raise_for_status()
-        return _parse_hourly(resp.json())
-    resp.raise_for_status()
-    return _parse_hourly(resp.json())
+    return _parse_hourly(_request_json(FORECAST_URL, params))
 
 
 def _parse_multi(payload) -> list[pd.DataFrame]:
@@ -98,7 +136,7 @@ def _parse_multi(payload) -> list[pd.DataFrame]:
 def _fetch_multi(url: str, lats: list[float], lons: list[float], extra: dict) -> list[pd.DataFrame]:
     """Open-Meteo accepts comma-separated coordinates and returns one result per
     point. URLs are length-limited, so callers must chunk (~100 points). Retries on
-    429 (rate limit) with backoff."""
+    timeout/5xx/429 with backoff."""
     params = {
         "latitude": ",".join(f"{v:.4f}" for v in lats),
         "longitude": ",".join(f"{v:.4f}" for v in lons),
@@ -107,18 +145,7 @@ def _fetch_multi(url: str, lats: list[float], lons: list[float], extra: dict) ->
         "timezone": "UTC",
         **extra,
     }
-    delay = 10.0
-    for attempt in range(5):
-        resp = requests.get(url, params=params, timeout=120, headers={"User-Agent": "vayu"})
-        if resp.status_code == 429:
-            log.warning("openmeteo.rate_limited", attempt=attempt, wait_s=delay)
-            time.sleep(delay)
-            delay *= 1.7
-            continue
-        resp.raise_for_status()
-        return _parse_multi(resp.json())
-    resp.raise_for_status()
-    return _parse_multi(resp.json())
+    return _parse_multi(_request_json(url, params))
 
 
 def fetch_forecast_multi(
