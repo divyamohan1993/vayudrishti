@@ -28,7 +28,7 @@ jobs:
     # Demo freeze: skip the ENTIRE job when the repo variable is 1.
     if: ${{ vars.DEMO_FREEZE != '1' }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60   # seeded/warm runs are minutes; the seed release makes true cold backfills unnecessary
+    timeout-minutes: 120  # warm runs ~45m ingest+features (full-join rebuild each run) + 15m publish + briefs; incremental features is a post-hackathon optimization
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
