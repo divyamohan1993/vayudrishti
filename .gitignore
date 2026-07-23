@@ -1,25 +1,29 @@
+# local secrets (GEE service-account key path in .env.example points here)
 .env
 .env.*
 !.env.example
-node_modules/
-__pycache__/
-.venv/
-data/feature-store/
-data/raw/
+secrets/
+
+# data stores (rebuilt by vayu ingest/features; CI seeds from the data-seed release)
+data/
 *.parquet
-.next/
-.vercel/
 models/artifacts/
 pipeline/**/artifacts/
 
-# web static export build output (never committed; Vercel builds it)
+# build output (web static export is built by Vercel/Docker, never committed)
+.next/
 out/
 web/out/
+node_modules/
+.vercel/
+__pycache__/
+.venv/
 
-# local secrets (GEE service-account key path in .env.example points here)
-secrets/
-
-# humanizer temp artifacts and OS cruft
+# verification and tooling artifacts
+web/screenshots/
+.playwright-mcp/
 *.humanized
+
+# OS cruft
 .DS_Store
 Thumbs.db

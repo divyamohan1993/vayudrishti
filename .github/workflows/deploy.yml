@@ -1,0 +1,78 @@
+name: deploy
+
+# Build the web container and roll it to Cloud Run (asia-east1).
+# Called by refresh.yml after each data commit, and manually via dispatch.
+# Uses the preinstalled gcloud + docker on the runner; no marketplace actions.
+
+on:
+  workflow_dispatch: {}
+  workflow_call: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+env:
+  GCP_PROJECT: dmjone
+  REGION: asia-east1
+  SERVICE: vayudrishti
+  IMAGE: asia-east1-docker.pkg.dev/dmjone/vayudrishti/web
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout latest main (includes the freshest data commit)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: main
+
+      - name: Authenticate gcloud (service-account key, masked)
+        env:
+          GCP_KEY_B64: ${{ secrets.GCP_DEPLOYER_KEY }}
+        run: |
+          if [ -z "${GCP_KEY_B64:-}" ]; then
+            echo "::error::GCP_DEPLOYER_KEY secret missing"; exit 1
+          fi
+          umask 077
+          printf '%s' "$GCP_KEY_B64" | base64 -d > "$RUNNER_TEMP/gcp-key.json"
+          gcloud auth activate-service-account --key-file="$RUNNER_TEMP/gcp-key.json" --quiet
+          gcloud config set project "$GCP_PROJECT" --quiet
+          gcloud auth configure-docker asia-east1-docker.pkg.dev --quiet
+
+      - name: Build and push image
+        run: |
+          TAG="$(git rev-parse --short HEAD)"
+          docker build -t "$IMAGE:$TAG" -t "$IMAGE:latest" web/
+          docker push "$IMAGE:$TAG"
+          docker push "$IMAGE:latest"
+          echo "IMAGE_TAG=$TAG" >> "$GITHUB_ENV"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy "$SERVICE" \
+            --image "$IMAGE:$IMAGE_TAG" \
+            --region "$REGION" \
+            --platform managed \
+            --allow-unauthenticated \
+            --port 8080 \
+            --memory 256Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --quiet
+          gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)'
+
+      - name: Health check
+        run: |
+          URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format 'value(status.url)')
+          for i in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "$URL/")
+            [ "$code" = "200" ] && echo "healthy: $URL" && exit 0
+            sleep 5
+          done
+          echo "::error::service did not return 200"; exit 1

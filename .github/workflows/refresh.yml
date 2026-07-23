@@ -25,6 +25,8 @@ concurrency:
 
 jobs:
   refresh:
+    outputs:
+      committed: ${{ steps.datacommit.outputs.committed }}
     # Demo freeze: skip the ENTIRE job when the repo variable is 1.
     if: ${{ vars.DEMO_FREEZE != '1' }}
     runs-on: ubuntu-latest
@@ -171,18 +173,30 @@ jobs:
           key: vayu-data-${{ github.run_id }}
 
       - name: Commit ONLY web/public/data/** (first-party, no-op on no change)
+        id: datacommit
         run: |
           git config user.name "vayudrishti-bot"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -- web/public/data
           if git diff --cached --quiet; then
             echo "No data changes; nothing to commit."
+            echo "committed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
+          echo "committed=true" >> "$GITHUB_OUTPUT"
           git commit -m "chore(data): scheduled refresh $(date -u +%Y-%m-%dT%H:%MZ)
 
           Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
           # Rebase onto any concurrent push, then push with an explicit refspec so
           # this works even if checkout left HEAD detached. refresh targets main.
-          git pull --rebase origin main
+          # --autostash: the runner tree may hold unstaged non-data files (locks,
+          # reports); stash them around the rebase instead of failing the push.
+          git pull --rebase --autostash origin main
           git push origin HEAD:refs/heads/main
+
+  deploy:
+    # Roll the new data into the Cloud Run image after a real data commit.
+    needs: refresh
+    if: needs.refresh.outputs.committed == 'true'
+    uses: ./.github/workflows/deploy.yml
+    secrets: inherit
