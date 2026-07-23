@@ -5,8 +5,8 @@ description = "VayuDrishti pipeline: ingest -> features -> train -> predict -> p
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "boto3>=1.35",
-    "pandas>=2.2",
+    "boto3>=1.43.54",
+    "pandas>=3.0.5",
     "pyarrow>=17",
     "geopandas>=1.0",
     "shapely>=2.0",
@@ -22,7 +22,7 @@ dependencies = [
     "lightgbm>=4.7.0",
     "scikit-learn>=1.9.0",
     "numpy>=2.5.1",
-    "openai>=2.46.0",
+    "openai>=2.47.0",
 ]
 
 [project.scripts]
