@@ -13,7 +13,7 @@
     "@deck.gl/core": "^9",
     "@deck.gl/layers": "^9",
     "@deck.gl/mapbox": "^9",
-    "maplibre-gl": "^5",
+    "maplibre-gl": "^6",
     "next": "^15",
     "pmtiles": "^4",
     "react": "^19",
